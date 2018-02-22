@@ -60,6 +60,10 @@ pios_hmc5x83_dev_t pios_hmc5x83_internal_id;
 # endif
 #endif
 
+#ifdef PIOS_INCLUDE_QMC5883L
+# include "pios_qmc5883l.h"
+#endif
+
 #ifdef PIOS_INCLUDE_L3GD20
 # include "pios_l3gd20.h"
 #endif
@@ -146,35 +150,36 @@ void PIOS_BOARD_Sensors_Configure()
 
 # endif /* PIOS_INCLUDE_HMC5X83_INTERNAL */
 
-# ifdef PIOS_INCLUDE_HMC5X83
+# if defined(PIOS_INCLUDE_HMC5X83) || defined(PIOS_INCLUDE_QMC5883L)
+    AuxMagSettingsInitialize();
 
     AuxMagSettingsTypeOptions option;
     AuxMagSettingsTypeGet(&option);
 
-    const struct pios_hmc5x83_cfg *hmc5x83_external_cfg = PIOS_BOARD_HW_DEFS_GetExternalHMC5x83Cfg(pios_board_info_blob.board_rev);
+    uint32_t auxmag_i2c_id = 0;
 
-    if (hmc5x83_external_cfg) {
-        uint32_t i2c_id = 0;
-
-        if (option == AUXMAGSETTINGS_TYPE_FLEXI) {
-            // i2c_external
+    if (option == AUXMAGSETTINGS_TYPE_FLEXI) {
+        // i2c_external
 #ifdef PIOS_I2C_FLEXI_ADAPTER
-            i2c_id = PIOS_I2C_FLEXI_ADAPTER;
+        auxmag_i2c_id = PIOS_I2C_FLEXI_ADAPTER;
 #endif
-        } else if (option == AUXMAGSETTINGS_TYPE_I2C) {
-            // i2c_internal (or Sparky2/F3 dedicated I2C port)
+    } else if (option == AUXMAGSETTINGS_TYPE_I2C) {
+        // i2c_internal (or Sparky2/F3 dedicated I2C port)
 #ifdef PIOS_I2C_EXTERNAL_ADAPTER
-            i2c_id = PIOS_I2C_EXTERNAL_ADAPTER;
+        auxmag_i2c_id = PIOS_I2C_EXTERNAL_ADAPTER;
 #endif
-        }
+    }
 
-        if (i2c_id) {
-            uint32_t external_mag = PIOS_HMC5x83_Init(hmc5x83_external_cfg, i2c_id, 0);
-#  ifdef PIOS_INCLUDE_WDG
+    if (auxmag_i2c_id) {
+#  ifdef PIOS_INCLUDE_HMC5X83
+        const struct pios_hmc5x83_cfg *hmc5x83_external_cfg = PIOS_BOARD_HW_DEFS_GetExternalHMC5x83Cfg(pios_board_info_blob.board_rev);
+        if (hmc5x83_external_cfg) {
+            uint32_t external_mag = PIOS_HMC5x83_Init(hmc5x83_external_cfg, auxmag_i2c_id, 0);
+#   ifdef PIOS_INCLUDE_WDG
             // give HMC5x83 on I2C some extra time to allow for reset, etc. if needed
             // this is not in a loop, so it is safe
             PIOS_WDG_Clear();
-#  endif /* PIOS_INCLUDE_WDG */
+#   endif /* PIOS_INCLUDE_WDG */
             // add this sensor to the sensor task's list
             // be careful that you don't register a slow, unimportant sensor after registering the fastest sensor
             // and before registering some other fast and important sensor
@@ -183,8 +188,16 @@ void PIOS_BOARD_Sensors_Configure()
             // mag alarm is cleared later, so use I2C
             AlarmsSet(SYSTEMALARMS_ALARM_I2C, (external_mag) ? SYSTEMALARMS_ALARM_OK : SYSTEMALARMS_ALARM_WARNING);
         }
+#  endif /* PIOS_INCLUDE_HMC5X83 */
+#  ifdef PIOS_INCLUDE_QMC5883L
+        pios_qmc5883l_dev_t qmc5883l_dev = PIOS_QMC5883L_Init(auxmag_i2c_id);
+#   ifdef PIOS_INCLUDE_WDG
+        PIOS_WDG_Clear();
+#   endif /* PIOS_INCLUDE_WDG */
+        AlarmsSet(SYSTEMALARMS_ALARM_I2C, (qmc5883l_dev) ? SYSTEMALARMS_ALARM_OK : SYSTEMALARMS_ALARM_WARNING);
+#  endif /* PIOS_INCLUDE_QMC5883L */
     }
-# endif /* PIOS_INCLUDE_HMC5X83 */
+# endif /* PIOS_INCLUDE_HMC5X83 || PIOS_INCLUDE_QMC5883L */
 
     // internal ms5611 baro
 #ifdef PIOS_INCLUDE_MS56XX
