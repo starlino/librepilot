@@ -75,6 +75,7 @@
 
 #define PIOS_QMC5883L_I2C_CONFIG_RETRY_DELAY   1000000
 #define PIOS_QMC5883L_I2C_CONFIG_DATA_DELAY    10000
+#define PIOS_QMC5883L_I2C_CONFIG_DATA_TIMEOUT  (PIOS_QMC5883L_I2C_CONFIG_DATA_DELAY * 10)
 #define PIOS_QMC5883L_I2C_RETRIES              2
 
 enum pios_qmc5883l_dev_magic {
@@ -249,7 +250,7 @@ static void PIOS_QMC5883L_driver_Reset(__attribute__((unused)) uintptr_t context
 static void PIOS_QMC5883L_driver_get_scale(float *scales, uint8_t size, __attribute__((unused))  uintptr_t context)
 {
     PIOS_Assert(size > 0);
-    scales[0] = 0.5;
+    scales[0] = 0.35f;
 }
 
 static void PIOS_QMC5883L_driver_fetch(void *data, __attribute__((unused)) uint8_t size, uintptr_t context)
@@ -293,6 +294,9 @@ static bool PIOS_QMC5883L_driver_poll(uintptr_t context)
 
     // Is it ready?
     if (!(status & PIOS_QMC5883L_STATUS_DRDY)) {
+        if (PIOS_DELAY_DiffuS(dev->readTime) > PIOS_QMC5883L_I2C_CONFIG_DATA_TIMEOUT) { // the sensor has reset and it is not in continuous mode anymore
+            dev->sensorIsAlive = false;
+        }
         return false;
     }
 
