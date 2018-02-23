@@ -228,16 +228,10 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
 
     // During initialization and
     if (this->first_run) {
-#if defined(PIOS_INCLUDE_HMC5X83)
         // wait until mags have been updated
         if (!this->magUpdated && this->useMag) {
             return FILTERRESULT_ERROR;
         }
-#else
-        mag[0] = 100.0f;
-        mag[1] = 0.0f;
-        mag[2] = 0.0f;
-#endif
 
         pseudo_windowed_variance_init(&this->gyro_var[0], VARIANCE_WINDOW_SIZE);
         pseudo_windowed_variance_init(&this->gyro_var[1], VARIANCE_WINDOW_SIZE);

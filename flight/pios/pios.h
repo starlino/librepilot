@@ -339,6 +339,10 @@ extern "C" {
 /* Performance counters */
 /* #define IDLE_COUNTS_PER_SEC_AT_NO_LOAD 995998 */
 
+#if defined(PIOS_INCLUDE_HMC5X83) || defined(PIOS_INCLUDE_QMC5883L)
+#define PIOS_INCLUDE_SENSORS_AUXMAG
+#endif
+
 #endif /* USE_SIM_POSIX */
 
 

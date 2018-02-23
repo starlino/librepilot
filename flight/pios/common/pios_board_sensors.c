@@ -150,7 +150,7 @@ void PIOS_BOARD_Sensors_Configure()
 
 # endif /* PIOS_INCLUDE_HMC5X83_INTERNAL */
 
-# if defined(PIOS_INCLUDE_HMC5X83) || defined(PIOS_INCLUDE_QMC5883L)
+# ifdef PIOS_INCLUDE_SENSORS_AUXMAG
     AuxMagSettingsInitialize();
 
     AuxMagSettingsTypeOptions option;
@@ -197,7 +197,7 @@ void PIOS_BOARD_Sensors_Configure()
         AlarmsSet(SYSTEMALARMS_ALARM_I2C, (qmc5883l_dev) ? SYSTEMALARMS_ALARM_OK : SYSTEMALARMS_ALARM_WARNING);
 #  endif /* PIOS_INCLUDE_QMC5883L */
     }
-# endif /* PIOS_INCLUDE_HMC5X83 || PIOS_INCLUDE_QMC5883L */
+# endif /* PIOS_INCLUDE_SENSORS_AUXMAG */
 
     // internal ms5611 baro
 #ifdef PIOS_INCLUDE_MS56XX
