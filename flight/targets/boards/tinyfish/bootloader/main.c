@@ -76,6 +76,10 @@ int main()
     PIOS_Board_Init();
     PIOS_IAP_Init();
 
+    // Without vsense pin, need to wait for correct PIOS_USB_CableConnected detection.
+    // This break DSM binding process but allows firmware rescue.
+    PIOS_DELAY_WaitmS(500);
+
     USB_connected = PIOS_USB_CableConnected(0);
 
     if (PIOS_IAP_CheckRequest() == TRUE) {
@@ -165,7 +169,7 @@ int main()
         if (stopwatch > 50 * 1000 * 1000) {
             stopwatch = 0;
         }
-        if ((stopwatch > 6 * 1000 * 1000) && ((DeviceState == BLidle) /*|| (DeviceState == DFUidle && !USB_connected)*/)) {
+        if ((stopwatch > 6 * 1000 * 1000) && ((DeviceState == BLidle) || (DeviceState == DFUidle && !USB_connected))) {
             JumpToApp = TRUE;
         }
 
@@ -199,7 +203,6 @@ void jump_to_app()
         Jump_To_Application();
     } else {
         DeviceState = failed_jump;
-        JumpToApp   = FALSE;
         return;
     }
 }
