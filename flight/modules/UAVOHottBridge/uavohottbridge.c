@@ -6,7 +6,7 @@
  * @{
  *
  * @file       uavohottbridge.c
- * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017.
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017-2019.
  *             Tau Labs, http://taulabs.org, Copyright (C) 2013-2014
  * @brief      sends telemery data on HoTT request
  *
@@ -52,6 +52,7 @@
 #include "velocitystate.h"
 #include "hottbridgestatus.h"
 #include "hottbridgesettings.h"
+#include "revosettings.h"
 #include "objectpersistence.h"
 #include "pios_sensors.h"
 #include "uavohottbridge.h"
@@ -81,7 +82,7 @@ static uint16_t build_GPS_message(struct hott_gps_message *msg);
 static uint16_t build_GAM_message(struct hott_gam_message *msg);
 static uint16_t build_EAM_message(struct hott_eam_message *msg);
 static uint16_t build_ESC_message(struct hott_esc_message *msg);
-static uint16_t build_TEXT_message(struct hott_text_message *msg);
+static uint16_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, bool edit_line, bool exit_menu);
 static uint8_t calc_checksum(uint8_t *data, uint16_t size);
 static uint8_t generate_warning();
 static void update_telemetrydata();
@@ -201,17 +202,81 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             }
         } else if (rx_buffer[1] == HOTT_TEXT_ID) {
             // first received byte looks like a text request. check second received byte for a valid button.
-            switch (rx_buffer[0]) {
-            case HOTT_BUTTON_DEC:
-            case HOTT_BUTTON_INC:
-            case HOTT_BUTTON_SET:
-            case HOTT_BUTTON_NIL:
-            case HOTT_BUTTON_NEXT:
-            case HOTT_BUTTON_PREV:
-                message_size = build_TEXT_message((struct hott_text_message *)tx_buffer);
+            uint8_t id_key      = rx_buffer[0] & 0x0F;
+            uint8_t id_sensor   = rx_buffer[0] >> 4;
+
+            bool exit_menu      = false;
+            bool refresh = true;
+            bool edit_line      = false;
+
+            // define allowed edited lines for Main, Vario, Gps, General, Electric and Esc pages
+            uint8_t min_line[]  = { 2, 2, 0, 0, 0 };
+            uint8_t max_line[]  = { 6, 2, 0, 0, 0 };
+
+            static uint8_t page = HOTTPAGE_MAIN;
+            static uint8_t last_page    = 0;
+            static uint8_t current_line = 0;
+
+            // select page to display from text request
+            switch (id_sensor) {
+            case (HOTT_VARIO_ID & 0x0f):
+                page = HOTTPAGE_VARIO;
                 break;
-            default:
-                message_size = 0;
+            case (HOTT_GPS_ID & 0x0f):
+                page = HOTTPAGE_GPS;
+                break;
+            case (HOTT_GAM_ID & 0x0f):
+                page = HOTTPAGE_GENERAL;
+                break;
+            case (HOTT_EAM_ID & 0x0f):
+                page = HOTTPAGE_ELECTRIC;
+                break;
+            case (HOTT_ESC_ID & 0x0f):
+                page = HOTTPAGE_ESC;
+            }
+
+            // menu keys
+            switch (id_key) {
+            case HOTT_KEY_DEC: // up
+                current_line--;
+                break;
+            case HOTT_KEY_INC: // down
+                current_line++;
+                break;
+            case HOTT_KEY_PREV: // left
+                exit_menu = (page == 0) ? true : false;
+                page--;
+                break;
+            case HOTT_KEY_NEXT: // right
+                exit_menu    = false;
+                current_line = 0;
+                page++;
+                break;
+            case HOTT_KEY_SET: // Set
+                edit_line = true;
+                break;
+            }
+
+            // keep current line between min/max limits
+            if (current_line > max_line[page]) {
+                current_line = max_line[page];
+            }
+            if (current_line < min_line[page]) {
+                current_line = min_line[page];
+            }
+
+            if (page > (HOTTPAGE_NUMELEM - 1)) {
+                page = HOTTPAGE_MAIN;
+            }
+            if (page != last_page) {
+                current_line = 0;
+                last_page    = page;
+            }
+
+            // prevent double call and tx already in progress
+            if (refresh && (message_size == 0)) {
+                message_size = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, edit_line, exit_menu);
+                refresh = false;
             }
         }
 
@@ -591,19 +656,174 @@ uint16_t build_ESC_message(struct hott_esc_message *msg)
     return sizeof(*msg);
 }
 
-uint16_t build_TEXT_message(struct hott_text_message *msg)
+uint16_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, bool edit_line, bool exit_menu)
 {
-    update_telemetrydata();
-
     // clear message buffer
     memset(msg, 0, sizeof(*msg));
 
     // message header
-    msg->start     = HOTT_START;
+    msg->start     = HOTT_TEXT_START;
     msg->stop      = HOTT_STOP;
-    msg->sensor_id = HOTT_TEXT_ID;
+    msg->sensor_id = (exit_menu == true) ? 0x01 : 0x00; // exit menu / normal
+    msg->warning   = 0;
 
-    msg->checksum  = calc_checksum((uint8_t *)msg, sizeof(*msg));
+    HoTTBridgeSettingsSensorData sensor;
+    RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
+    bool ekf_enabled = false;
+
+    if (HoTTBridgeSettingsHandle() != NULL) {
+        HoTTBridgeSettingsSensorGet(&sensor);
+    }
+
+    if (RevoSettingsHandle() != NULL) {
+        RevoSettingsFusionAlgorithmGet(&revoFusionAlgo);
+    }
+
+    char *txt_fusionalgo = "";
+    // page title
+    snprintf(msg->text[0], HOTT_TEXT_COLUMNS, "%s", hottPageTitle[page]); // line 1
+
+    // compute page content
+    switch (page) {
+    case HOTTPAGE_VARIO: // Vario page
+        // check current algo status
+        switch (revoFusionAlgo) {
+        case REVOSETTINGS_FUSIONALGORITHM_INS13INDOOR:
+        case REVOSETTINGS_FUSIONALGORITHM_TESTINGINSINDOORCF:
+            txt_fusionalgo = "* EKF INDOOR NOGPS * ";
+            ekf_enabled    = true;
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13:
+        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13CF:
+            txt_fusionalgo = " * EKF OUTDOOR GPS * ";
+            ekf_enabled    = true;
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
+        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAG:
+        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAGGPSOUTDOOR:
+        default:
+            txt_fusionalgo = "   * BASIC ALGO *    ";
+            ekf_enabled    = false;
+        }
+        if (edit_line && (current_line == 2)) {
+            // check if a GPS is available
+            bool gps_ok = (telestate->SysAlarms.Alarm.GPS != SYSTEMALARMS_ALARM_UNINITIALISED) && (telestate->SysAlarms.Alarm.GPS != SYSTEMALARMS_ALARM_ERROR);
+            if (gps_ok) {
+                if (ekf_enabled) {
+                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY; // move to Basic (no mag needed)
+                } else {
+                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13CF; // move to ekf
+                }
+            } else {
+                // without GPS
+                if (ekf_enabled) {
+                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY; // move to Basic (no mag needed)
+                } else {
+                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_TESTINGINSINDOORCF; // move to ekf
+                }
+            }
+            RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
+            UAVObjSave(RevoSettingsHandle(), 0);
+        }
+
+        char *ekf_status = (ekf_enabled) ? "*" : " ";
+
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Use EKF algo    [%1s] ", ekf_status); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, "                     "); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, "%s", txt_fusionalgo); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, "                     "); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "      WARNING!!      "); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "   This overwrites   "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "    algo settings    "); // line 8
+
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        break;
+    case HOTTPAGE_GPS: // GPS page
+    case HOTTPAGE_GENERAL: // General Air page
+    case HOTTPAGE_ELECTRIC: // Electric Air page
+    case HOTTPAGE_ESC: // Esc page
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, "                     "); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, "                     "); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, "                     "); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, "                     "); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        break;
+    default:
+    case HOTTPAGE_MAIN: // Main page where HoTT modules can be started
+        if (edit_line) {
+            switch (current_line) {
+            case 2:
+                if (sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+                    sensor.VARIO = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                } else {
+                    sensor.VARIO = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                }
+                break;
+            case 3:
+                if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+                    sensor.GPS = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                } else {
+                    sensor.GPS = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                }
+                break;
+            case 4:
+                if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+                    sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                    // no need to emulate General module
+                    sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                } else {
+                    sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                }
+                break;
+            case 5:
+                if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+                    sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                    // no need to emulate Electric module
+                    sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                } else {
+                    sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                }
+                break;
+            case 6:
+                if (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+                    sensor.ESC = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                } else {
+                    sensor.ESC = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+                }
+            }
+            HoTTBridgeSettingsSensorSet(&sensor);
+            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
+        }
+
+        // check sensors status and set char
+        char *vario_status = (sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*";
+        char *gps_status   = (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*";
+        char *gam_status   = (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*";
+        char *eam_status   = (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*";
+        char *esc_status   = (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*";
+
+        // create Main page content
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " VARIO module    [%1s] ", vario_status); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " GPS module      [%1s] ", gps_status); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " ELECTRIC module [%1s] ", eam_status); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " GENERAL module  [%1s] ", gam_status); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " ESC module      [%1s] ", esc_status); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "   Select module     ");
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "   to be emulated    ");
+
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        // break;
+    }
+
+    msg->stop     = HOTT_STOP;
+
+    msg->checksum = calc_checksum((uint8_t *)msg, sizeof(*msg));
     return sizeof(*msg);
 }
 

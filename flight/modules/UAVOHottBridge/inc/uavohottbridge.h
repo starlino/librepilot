@@ -6,7 +6,7 @@
  * @{
  *
  * @file       uavohottbridge.h
- * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017.
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017-2019.
  *             Tau Labs, http://taulabs.org, Copyright (C) 2013
  * @brief      sends telemery data on HoTT request
  *
@@ -31,7 +31,7 @@
 
 // timing variables
 #define IDLE_TIME               10    // idle line delay to prevent data crashes on telemetry line.
-#define DATA_TIME               3             // time between 2 transmitted bytes
+#define DATA_TIME               3     // time between 2 transmitted bytes
 
 // sizes and lengths
 #define climbratesize           50                        // defines size of ring buffer for climbrate calculation
@@ -161,6 +161,14 @@
 #define HOTT_TONE_51            51      // maximum servo temperature
 #define HOTT_TONE_52            52      // maximum servo position difference
 
+#define HOTT_KEY_DEC            11
+#define HOTT_KEY_INC            13
+#define HOTT_KEY_NEXT           14
+#define HOTT_KEY_PREV           7
+#define HOTT_KEY_SET            9
+
+#define HOTT_TEXT_LINES         8
+#define HOTT_TEXT_COLUMNS       21
 
 // Private types
 typedef struct {
@@ -197,6 +205,27 @@ struct telemetrydata {
     uint8_t last_armed;
     char    statusline[statussize];
 };
+
+// HoTT menu
+static const char *const hottPageTitle[] = {
+    "***LIBREPILOT Hott***",
+    "-----VARIO PAGE------",
+    "------GPS PAGE-------",
+    "--GENERAL AIR PAGE---",
+    "--ELECTRIC AIR PAGE--",
+    "------ESC PAGE-------"
+};
+
+typedef enum {
+    HOTTPAGE_MAIN     = 0,
+    HOTTPAGE_VARIO    = 1,
+    HOTTPAGE_GPS      = 2,
+    HOTTPAGE_GENERAL  = 3,
+    HOTTPAGE_ELECTRIC = 4,
+    HOTTPAGE_ESC      = 5,
+} hottPageElem;
+
+#define HOTTPAGE_NUMELEM 6
 
 // VARIO Module message structure
 struct hott_vario_message {
@@ -368,7 +397,7 @@ struct hott_text_message {
     uint8_t start; // Start byte
     uint8_t sensor_id; // TEXT id
     uint8_t warning;
-    uint8_t text[21][8]; // text field 21 columns and 8 rows (bit 7=1 for inverse display)
+    char    text[HOTT_TEXT_LINES][HOTT_TEXT_COLUMNS]; // text field 21 columns and 8 rows (bit 7=1 for inverse display)
     uint8_t stop; // Stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed.
 };
