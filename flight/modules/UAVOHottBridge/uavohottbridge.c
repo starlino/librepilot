@@ -215,7 +215,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             bool exit_menu        = false;
             bool is_saved = false;
 
-            int8_t value_change = 0;
+            int8_t value_change   = 0;
             static uint8_t step_change = 0;
 
             // define allowed edited lines for Main, GPS config, Vario, Gps, General, Electric and Esc pages
@@ -254,7 +254,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                     value_change++;
                     break;
                 case HOTT_KEY_PREV: // left
-                    if (step_change < 3 ) {
+                    if (step_change < 3) {
                         step_change++;
                     }
                     break;
@@ -315,8 +315,8 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             status.RxFail = step_change;
             status.TxFail = value_change;
 
-            is_saved     = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
-            message_size = sizeof(tx_buffer);
+            is_saved = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
+            message_size  = sizeof(tx_buffer);
             if (is_saved) {
                 // is already saved, exit edit mode
                 edit_line = false;
@@ -1347,11 +1347,22 @@ void update_telemetrydata()
     if ((telestate->FlightStatus.Armed == FLIGHTSTATUS_ARMED_ARMING) || ((telestate->last_armed != FLIGHTSTATUS_ARMED_ARMED) && (telestate->FlightStatus.Armed == FLIGHTSTATUS_ARMED_ARMED))) {
         telestate->min_altitude = 0;
         telestate->max_altitude = 0;
+        telestate->max_distance = 0;
     }
-    telestate->last_armed = telestate->FlightStatus.Armed;
+    telestate->last_armed   = telestate->FlightStatus.Armed;
 
     // calculate altitude relative to start position
-    telestate->altitude   = -telestate->Position.Down;
+    telestate->altitude     = -telestate->Position.Down;
+
+    // gps home position and course
+    telestate->homedistance = sqrtf(telestate->Position.North * telestate->Position.North + telestate->Position.East * telestate->Position.East);
+    telestate->homecourse   = acosf(-telestate->Position.North / telestate->homedistance) / 3.14159265f * 180;
+    if (telestate->Position.East > 0) {
+        telestate->homecourse = 360 - telestate->homecourse;
+    }
+
+    // calculate current 3D speed
+    float speed_3d = sqrtf((telestate->Velocity.North * telestate->Velocity.North) + (telestate->Velocity.East * telestate->Velocity.East) + (telestate->Velocity.Down * telestate->Velocity.Down)) * MS_TO_KMH;
 
     // check and set min/max values when armed
     // and without receiver input for standalone board used as sensor
@@ -1362,13 +1373,12 @@ void update_telemetrydata()
         if (telestate->max_altitude < telestate->altitude) {
             telestate->max_altitude = telestate->altitude;
         }
-    }
-
-    // gps home position and course
-    telestate->homedistance = sqrtf(telestate->Position.North * telestate->Position.North + telestate->Position.East * telestate->Position.East);
-    telestate->homecourse   = acosf(-telestate->Position.North / telestate->homedistance) / 3.14159265f * 180;
-    if (telestate->Position.East > 0) {
-        telestate->homecourse = 360 - telestate->homecourse;
+        if (telestate->max_distance < telestate->homedistance) {
+            telestate->max_distance = telestate->homedistance;
+        }
+        if (telestate->max_speed < speed_3d) {
+            telestate->max_speed = speed_3d;
+        }
     }
 
     // statusline
@@ -1475,6 +1485,9 @@ void update_telemetrydata()
     }
 
     snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%8s", txt_flightmode, txt_armstate);
+    snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", (uint16_t)telestate->max_speed, (uint16_t)telestate->max_distance);
+    // "Max  200kmh"
+    // "Dst 1000m "
 }
 
 /**

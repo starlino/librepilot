@@ -203,6 +203,8 @@ struct telemetrydata {
     float   climbrate10s;
     float   homedistance;
     float   homecourse;
+    float   max_distance;
+    float   max_speed;
     uint8_t last_armed;
     char    statusline[statussize];
 };
