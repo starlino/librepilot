@@ -39,6 +39,7 @@
 #include "callbackinfo.h"
 #include "hottbridgesettings.h"
 #include "attitudestate.h"
+#include "accelstate.h"
 #include "barosensor.h"
 #include "flightbatterystate.h"
 #include "flightstatus.h"
@@ -1289,6 +1290,9 @@ void update_telemetrydata()
     if (AttitudeStateHandle() != NULL) {
         AttitudeStateGet(&telestate->Attitude);
     }
+    if (AccelStateHandle() != NULL) {
+        AccelStateGet(&telestate->Accel);
+    }
     if (BaroSensorHandle() != NULL) {
         BaroSensorGet(&telestate->Baro);
     }
@@ -1325,14 +1329,19 @@ void update_telemetrydata()
 
     // send actual climbrate value to ring buffer as mm per 0.2s values
     uint8_t n = telestate->climbrate_pointer;
+    // DEBUG_PRINTF(3, "Current pointer: %d\r\n", n);
     telestate->climbratebuffer[telestate->climbrate_pointer++] = -telestate->Velocity.Down * 200;
     telestate->climbrate_pointer %= climbratesize;
+    // DEBUG_PRINTF(3, "Next pointer: %d\r\n", telestate->climbrate_pointer);
+
+    bool display_G = (n > 25);
 
     // calculate avarage climbrates in meters per 1, 3 and 10 second(s) based on 200ms interval
     telestate->climbrate1s  = 0;
     telestate->climbrate3s  = 0;
     telestate->climbrate10s = 0;
     for (uint8_t i = 0; i < climbratesize; i++) {
+        // DEBUG_PRINTF(3, "%d ", n);
         telestate->climbrate1s  += (i < 5) ? telestate->climbratebuffer[n] : 0;
         telestate->climbrate3s  += (i < 15) ? telestate->climbratebuffer[n] : 0;
         telestate->climbrate10s += (i < 50) ? telestate->climbratebuffer[n] : 0;
@@ -1364,6 +1373,10 @@ void update_telemetrydata()
     // calculate current 3D speed
     float speed_3d = sqrtf((telestate->Velocity.North * telestate->Velocity.North) + (telestate->Velocity.East * telestate->Velocity.East) + (telestate->Velocity.Down * telestate->Velocity.Down)) * MS_TO_KMH;
 
+    // Normal Acceleration (G unit)
+    float nz_alpha = 0.7f;
+    telestate->current_G = ((1 - nz_alpha) * (-telestate->Accel.z / 9.81f)) + (telestate->current_G * nz_alpha);
+
     // check and set min/max values when armed
     // and without receiver input for standalone board used as sensor
     if ((telestate->FlightStatus.Armed == FLIGHTSTATUS_ARMED_ARMED) || ((telestate->SysAlarms.Alarm.Attitude == SYSTEMALARMS_ALARM_OK) && (telestate->SysAlarms.Alarm.Receiver != SYSTEMALARMS_ALARM_OK))) {
@@ -1378,6 +1391,12 @@ void update_telemetrydata()
         }
         if (telestate->max_speed < speed_3d) {
             telestate->max_speed = speed_3d;
+        }
+        if (telestate->max_G < telestate->current_G) {
+            telestate->max_G = telestate->current_G;
+        }
+        if (telestate->min_G > telestate->current_G) {
+            telestate->min_G = telestate->current_G;
         }
     }
 
@@ -1488,6 +1507,9 @@ void update_telemetrydata()
     snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", (uint16_t)telestate->max_speed, (uint16_t)telestate->max_distance);
     // "Max  200kmh"
     // "Dst 1000m "
+    if (display_G) {
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "MaxG %2d.%d  MinG %2d.%d", (int8_t)(telestate->max_G), (int8_t)(telestate->max_G * 10) % 10, (int8_t)(telestate->min_G), (int8_t)abs(telestate->min_G * 10) % 10);
+    }
 }
 
 /**

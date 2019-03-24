@@ -180,18 +180,19 @@ typedef struct {
 // Private structures
 struct telemetrydata {
     HoTTBridgeSettingsData Settings;
-    AttitudeStateData Attitude;
-    BaroSensorData Baro;
+    AttitudeStateData      Attitude;
+    AccelStateData         Accel;
+    BaroSensorData         Baro;
     FlightBatteryStateData Battery;
-    FlightStatusData FlightStatus;
+    FlightStatusData       FlightStatus;
     GPSPositionSensorData  GPS;
-    AirspeedStateData Airspeed;
+    AirspeedStateData      Airspeed;
     GPSTimeData GPStime;
-    GyroSensorData    Gyro;
-    HomeLocationData  Home;
-    PositionStateData Position;
-    SystemAlarmsData  SysAlarms;
-    VelocityStateData Velocity;
+    GyroSensorData         Gyro;
+    HomeLocationData       Home;
+    PositionStateData      Position;
+    SystemAlarmsData       SysAlarms;
+    VelocityStateData      Velocity;
     int16_t climbratebuffer[climbratesize];
     uint8_t climbrate_pointer;
     float   altitude;
@@ -205,6 +206,9 @@ struct telemetrydata {
     float   homecourse;
     float   max_distance;
     float   max_speed;
+    float   current_G;  // G force
+    float   max_G;
+    float   min_G;
     uint8_t last_armed;
     char    statusline[statussize];
 };
