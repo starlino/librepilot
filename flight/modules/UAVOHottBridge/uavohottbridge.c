@@ -1044,9 +1044,9 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             GPSSettingsSet(&gpsSettings);
         }
 
-        char *home_set_perm = (homeSet == HOMELOCATION_SET_FALSE) ? "NEVER" : "ISSET";
+        char *home_set_status = (homeSet == HOMELOCATION_SET_FALSE) ? ((telestate->Home.Set == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s ", home_set_perm); // line 2
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s ", home_set_status); // line 2
         snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min satellites    %d ", gpsSettings.MinSatellites); // line 3
         snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Max PDOP       %2d.%d ", (uint16_t)(gpsSettings.MaxPDOP), (uint16_t)(gpsSettings.MaxPDOP * 10) % 10); // line 4
         snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " UBX Rate         %2d ", gpsSettings.UbxRate); // line 5
@@ -1059,12 +1059,13 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
         }
 
         if (edit_savehome) {
+            // refresh fixed homelocation if any
             if (homeSet == HOMELOCATION_SET_TRUE) {
                 homeSet = HOMELOCATION_SET_FALSE;
                 HomeLocationSetSet(&homeSet);
                 UAVObjSave(HomeLocationHandle(), 0);
-                storedtoflash = true;
             }
+            storedtoflash = true;
         }
         if (edit_minsat_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 19, 20);
