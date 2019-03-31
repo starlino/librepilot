@@ -313,11 +313,8 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                 current_line = min_line[page];
             }
 
-            status.RxFail = step_change;
-            status.TxFail = value_change;
-
-            is_saved = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
-            message_size  = sizeof(tx_buffer);
+            is_saved     = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
+            message_size = sizeof(tx_buffer);
             if (is_saved) {
                 // is already saved, exit edit mode
                 edit_line = false;
@@ -1281,6 +1278,9 @@ void store_settings(uint8_t page)
  * this is called on every telemetry request
  * calling interval is 200ms depending on TX
  * 200ms telemetry request is used as time base for timed calculations (5Hz interval)
+ *
+ * note : measured around 160ms with a MC20 and adjusted climbratebuffer size from 50 to 62
+ * to match the 10s period
  */
 void update_telemetrydata()
 {
@@ -1330,22 +1330,17 @@ void update_telemetrydata()
 
     // send actual climbrate value to ring buffer as mm per 0.2s values
     uint8_t n = telestate->climbrate_pointer;
-    // DEBUG_PRINTF(3, "Current pointer: %d\r\n", n);
     telestate->climbratebuffer[telestate->climbrate_pointer++] = -telestate->Velocity.Down * 200;
     telestate->climbrate_pointer %= climbratesize;
-    // DEBUG_PRINTF(3, "Next pointer: %d\r\n", telestate->climbrate_pointer);
-
-    bool display_G = (n > 25);
 
     // calculate avarage climbrates in meters per 1, 3 and 10 second(s) based on 200ms interval
     telestate->climbrate1s  = 0;
     telestate->climbrate3s  = 0;
     telestate->climbrate10s = 0;
     for (uint8_t i = 0; i < climbratesize; i++) {
-        // DEBUG_PRINTF(3, "%d ", n);
-        telestate->climbrate1s  += (i < 5) ? telestate->climbratebuffer[n] : 0;
-        telestate->climbrate3s  += (i < 15) ? telestate->climbratebuffer[n] : 0;
-        telestate->climbrate10s += (i < 50) ? telestate->climbratebuffer[n] : 0;
+        telestate->climbrate1s  += (i < climbratesize / 10) ? telestate->climbratebuffer[n] : 0;
+        telestate->climbrate3s  += (i < (climbratesize / 10) * 3) ? telestate->climbratebuffer[n] : 0;
+        telestate->climbrate10s += (i < climbratesize) ? telestate->climbratebuffer[n] : 0;
         n += climbratesize - 1;
         n %= climbratesize;
     }
@@ -1504,12 +1499,16 @@ void update_telemetrydata()
         txt_armstate = txt_unknown;
     }
 
-    snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%8s", txt_flightmode, txt_armstate);
-    snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", (uint16_t)telestate->max_speed, (uint16_t)telestate->max_distance);
-    // "Max  200kmh"
-    // "Dst 1000m "
-    if (display_G) {
-        snprintf(telestate->statusline, sizeof(telestate->statusline), "MaxG %2d.%d  MinG %2d.%d", (int8_t)(telestate->max_G), (int8_t)(telestate->max_G * 10) % 10, (int8_t)(telestate->min_G), (int8_t)abs(telestate->min_G * 10) % 10);
+    // use climbrate pointer for alternate display, without GPS every 5s or 3.3s with speed/dist msg
+    uint8_t statusmsg_num = (telestate->Settings.Sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ? 3 : 2;
+    if (telestate->climbrate_pointer < (climbratesize / statusmsg_num)) {
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%8s", txt_flightmode, txt_armstate);
+    } else if (telestate->climbrate_pointer < (climbratesize / statusmsg_num) * 2) {
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "MaxG %2d.%d  MinG %2d.%d",
+                 (int8_t)(telestate->max_G), (int8_t)(telestate->max_G * 10) % 10,
+                 (int8_t)(telestate->min_G), (int8_t)abs(telestate->min_G * 10) % 10);
+    } else {
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", (uint16_t)telestate->max_speed, (uint16_t)telestate->max_distance);
     }
 }
 

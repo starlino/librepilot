@@ -34,7 +34,7 @@
 #define DATA_TIME               3       // time between 2 transmitted bytes
 
 // sizes and lengths
-#define climbratesize           50      // defines size of ring buffer for climbrate calculation
+#define climbratesize           62      // defines size of ring buffer for climbrate calculation
 #define statussize              21      // number of characters in status line
 #define HOTT_MAX_MESSAGE_LENGTH 200
 
