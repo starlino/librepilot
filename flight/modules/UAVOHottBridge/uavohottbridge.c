@@ -85,7 +85,7 @@ static uint16_t build_GPS_message(struct hott_gps_message *msg);
 static uint16_t build_GAM_message(struct hott_gam_message *msg);
 static uint16_t build_EAM_message(struct hott_eam_message *msg);
 static uint16_t build_ESC_message(struct hott_esc_message *msg);
-static bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step_change, bool edit_line, bool exit_menu);
+static uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step_change, bool edit_line, bool exit_menu);
 static char *reverse_pixels(char *line, uint8_t from_char, uint8_t to_char);
 static uint8_t get_page(uint8_t page, bool next);
 static int16_t get_new_value(int16_t current_value, int8_t value_change, uint8_t step, int16_t min, int16_t max);
@@ -214,8 +214,6 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
 
             static bool edit_line = false;
             bool exit_menu        = false;
-            bool is_saved = false;
-
             int8_t value_change   = 0;
             static uint8_t step_change = 0;
 
@@ -224,26 +222,9 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             uint8_t max_line[]  = { 6, 5, 7, 7, 7, 7, 7 };
 
             static uint8_t page = HOTTTEXT_PAGE_MAIN;
+            static uint8_t edit_status  = HOTTTEXT_EDITSTATUS_DONE;
             static uint8_t last_page    = 0;
             static uint8_t current_line = 0;
-
-            // select page to display from text request
-            switch (id_sensor) {
-            case (HOTT_VARIO_ID & 0x0f):
-                page = HOTTTEXT_PAGE_VARIO;
-                break;
-            case (HOTT_GPS_ID & 0x0f):
-                page = HOTTTEXT_PAGE_GPS;
-                break;
-            case (HOTT_GAM_ID & 0x0f):
-                page = HOTTTEXT_PAGE_GENERAL;
-                break;
-            case (HOTT_EAM_ID & 0x0f):
-                page = HOTTTEXT_PAGE_ELECTRIC;
-                break;
-            case (HOTT_ESC_ID & 0x0f):
-                page = HOTTTEXT_PAGE_ESC;
-            }
 
             // menu keys
             if (edit_line) {
@@ -255,19 +236,19 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                     value_change++;
                     break;
                 case HOTT_KEY_PREV: // left
-                    if (step_change < 3) {
+                    if (step_change < HOTTTEXT_EDITSTATUS_STEP10K) {
                         step_change++;
                     }
                     break;
                 case HOTT_KEY_NEXT: // right
-                    if (step_change > 0) {
+                    if (step_change > HOTTTEXT_EDITSTATUS_STEP1) {
                         step_change--;
                     }
                     break;
                 case HOTT_KEY_SET: // Set
                     value_change = 0;
                     step_change  = 0;
-                    if (!is_saved) {
+                    if (edit_status != HOTTTEXT_EDITSTATUS_DONE) {
                         store_settings(page);
                         edit_line = false; // exit edit mode
                     }
@@ -298,6 +279,25 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                 }
             }
 
+            // select page to display from text request
+            // (this inhibit normal page browsing and give direct access to sensor page)
+            switch (id_sensor) {
+            case (HOTT_VARIO_ID & 0x0f):
+                page = HOTTTEXT_PAGE_VARIO;
+                break;
+            case (HOTT_GPS_ID & 0x0f):
+                page = HOTTTEXT_PAGE_GPS;
+                break;
+            case (HOTT_GAM_ID & 0x0f):
+                page = HOTTTEXT_PAGE_GENERAL;
+                break;
+            case (HOTT_EAM_ID & 0x0f):
+                page = HOTTTEXT_PAGE_ELECTRIC;
+                break;
+            case (HOTT_ESC_ID & 0x0f):
+                page = HOTTTEXT_PAGE_ESC;
+            }
+
             // new page
             if (page != last_page) {
                 last_page    = page;
@@ -313,11 +313,13 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                 current_line = min_line[page];
             }
 
-            is_saved     = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
+            edit_status  = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
             message_size = sizeof(tx_buffer);
-            if (is_saved) {
+            if (edit_status == HOTTTEXT_EDITSTATUS_DONE) {
                 // is already saved, exit edit mode
                 edit_line = false;
+            } else if (edit_line) {
+                step_change = edit_status;
             }
         }
 
@@ -697,7 +699,7 @@ uint16_t build_ESC_message(struct hott_esc_message *msg)
     return sizeof(*msg);
 }
 
-bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step, bool edit_mode, bool exit_menu)
+uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step, bool edit_mode, bool exit_menu)
 {
     // clear message buffer
     memset(msg, 0, sizeof(*msg));
@@ -715,8 +717,8 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
     HomeLocationSetOptions homeSet;
     GPSSettingsData gpsSettings;
 
-    bool storedtoflash = false;
-    bool ekf_enabled   = false;
+    uint8_t edit_status = step;
+    bool ekf_enabled    = false;
 
     // page title
     snprintf(msg->text[0], HOTT_TEXT_COLUMNS, "%s", hottTextPageTitle[page]); // line 1
@@ -735,8 +737,8 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
         bool edit_altitudebeep    = (edit_mode && (current_line == 2));
         bool edit_maxheight       = (edit_mode && (current_line == 3));
         bool edit_minheight       = (edit_mode && (current_line == 4));
-        bool edit_minheight_value = (edit_mode && (current_line == 5));
-        bool edit_maxheight_value = (edit_mode && (current_line == 6));
+        bool edit_maxheight_value = (edit_mode && (current_line == 5));
+        bool edit_minheight_value = (edit_mode && (current_line == 6));
 
         if (edit_altitudebeep) {
             if (alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -746,7 +748,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_minheight) {
             if (alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -756,7 +758,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxheight) {
             if (alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -766,17 +768,17 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
         if (edit_minheight_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // -500 to 500m
             alarmLimits.MinHeight = get_new_value((int16_t)alarmLimits.MinHeight, value_change, step, -500, 500);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxheight_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // -500 to 1500m
             alarmLimits.MaxHeight = get_new_value((int16_t)alarmLimits.MaxHeight, value_change, step, -500, 1500);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
@@ -821,7 +823,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
             UAVObjSave(RevoSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Altitude speak  [%1s] ", ((alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
@@ -863,7 +865,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_minspeed) {
             if (alarmWarning.MinSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -873,7 +875,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxspeed) {
             if (alarmWarning.MaxSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -883,21 +885,21 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxdistance_value) {
-            step = (step > 3) ? 3 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
             // 10m to 9000m
             alarmLimits.MaxDistance = get_new_value((uint16_t)alarmLimits.MaxDistance, value_change, step, 10, 9000);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxspeed_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             alarmLimits.MaxSpeed = get_new_value((int16_t)alarmLimits.MaxSpeed, value_change, step, 0, 600);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_minspeed_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             alarmLimits.MinSpeed = get_new_value((int16_t)alarmLimits.MinSpeed, value_change, step, 0, 600);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
@@ -946,7 +948,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxcurrent) {
             if (alarmWarning.MaxCurrent == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -956,7 +958,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxusedcapacity) {
             if (alarmWarning.MaxUsedCapacity == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
@@ -966,23 +968,23 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
         if (edit_minvoltage_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // 3V to 50V
             alarmLimits.MinPowerVoltage = (float)(get_new_value((uint16_t)(alarmLimits.MinPowerVoltage * 10), value_change, step, 30, 500) / 10.0f);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxcurrent_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // 1A to 300A
             alarmLimits.MaxCurrent = get_new_value((uint16_t)(alarmLimits.MaxCurrent), value_change, step, 1, 300);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxusedcapacity_value) {
-            step = (step > 3) ? 3 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
             // 100mAh to 30000mAh
             alarmLimits.MaxUsedCapacity = (float)(get_new_value((uint16_t)alarmLimits.MaxUsedCapacity, value_change, step, 100, 30000));
             HoTTBridgeSettingsLimitSet(&alarmLimits);
@@ -1000,10 +1002,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
         }
 
         if (edit_minvoltage_value) {
-            if (step > 0) {
-                step += 1;
-            }
-            reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - step), 20 - step);
+            reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - (step > 0 ? step + 1 : step)), 20 - (step > 0 ? step + 1 : step));
         }
         if (edit_maxcurrent_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 16 + (3 - step), 20 - step);
@@ -1031,12 +1030,13 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             GPSSettingsSet(&gpsSettings);
         }
         if (edit_maxpdop_value) {
-            step = (step > 2) ? 2 : step;
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // 1.0 to 10.0
             gpsSettings.MaxPDOP = (float)(get_new_value((uint16_t)(gpsSettings.MaxPDOP * 10), value_change, step, 10, 100) / 10.0f);
             GPSSettingsSet(&gpsSettings);
         }
         if (edit_ubxrate_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP1) ? HOTTTEXT_EDITSTATUS_STEP1 : step;
             gpsSettings.UbxRate = get_new_value(gpsSettings.UbxRate, value_change, 0, 1, 15);
             GPSSettingsSet(&gpsSettings);
         }
@@ -1062,16 +1062,13 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
                 HomeLocationSetSet(&homeSet);
                 UAVObjSave(HomeLocationHandle(), 0);
             }
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_minsat_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 19, 20);
         }
         if (edit_maxpdop_value) {
-            if (step > 0) {
-                step += 1;
-            }
-            reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - step), 20 - step);
+            reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - (step > 0 ? step + 1 : step)), 20 - (step > 0 ? step + 1 : step));
         }
         if (edit_ubxrate_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 18, 20);
@@ -1125,7 +1122,7 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
             }
             HoTTBridgeSettingsSensorSet(&sensor);
             UAVObjSave(HoTTBridgeSettingsHandle(), 0);
-            storedtoflash = true;
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
         // create Main page content
@@ -1136,7 +1133,6 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
         snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " ESC module      [%1s] ", ((sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 6
         snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "   Select module     ");
         snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "   to be emulated    ");
-
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1146,7 +1142,10 @@ bool build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t cur
     msg->stop     = HOTT_STOP;
 
     msg->checksum = calc_checksum((uint8_t *)msg, sizeof(*msg));
-    return storedtoflash;
+    if (edit_status != HOTTTEXT_EDITSTATUS_DONE) {
+        edit_status = step;
+    }
+    return edit_status;
 }
 
 /**

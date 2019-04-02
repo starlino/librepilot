@@ -236,10 +236,14 @@ typedef enum {
 
 #define HOTTTEXT_PAGE_NUMELEM 7
 
-struct hotttext_edit_status {
-    bool    stored;
-    uint8_t newstep;
-};
+typedef enum {
+    HOTTTEXT_EDITSTATUS_STEP1   = 0,
+    HOTTTEXT_EDITSTATUS_STEP10  = 1,
+    HOTTTEXT_EDITSTATUS_STEP100 = 2,
+    HOTTTEXT_EDITSTATUS_STEP1K  = 3,
+    HOTTTEXT_EDITSTATUS_STEP10K = 4,
+    HOTTTEXT_EDITSTATUS_DONE    = 5,
+} hottTextEditStatusElem;
 
 // VARIO Module message structure
 struct hott_vario_message {
