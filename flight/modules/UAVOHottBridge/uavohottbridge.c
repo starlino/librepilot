@@ -88,6 +88,8 @@ static uint16_t build_ESC_message(struct hott_esc_message *msg);
 static uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step_change, bool edit_line, bool exit_menu);
 static char *reverse_pixels(char *line, uint8_t from_char, uint8_t to_char);
 static uint8_t get_page(uint8_t page, bool next);
+static uint8_t enable_disable_warning(uint8_t value);
+static uint8_t enable_disable_sensor(uint8_t value);
 static int16_t get_new_value(int16_t current_value, int8_t value_change, uint8_t step, int16_t min, int16_t max);
 static uint8_t calc_checksum(uint8_t *data, uint16_t size);
 static uint8_t generate_warning();
@@ -316,7 +318,8 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             edit_status  = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
             message_size = sizeof(tx_buffer);
             if (edit_status == HOTTTEXT_EDITSTATUS_DONE) {
-                // is already saved, exit edit mode
+                // Save and exit edit mode
+                store_settings(page);
                 edit_line = false;
             } else if (edit_line) {
                 step_change = edit_status;
@@ -741,33 +744,18 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         bool edit_minheight_value = (edit_mode && (current_line == 6));
 
         if (edit_altitudebeep) {
-            if (alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.AltitudeBeep = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.AltitudeBeep = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.AltitudeBeep = enable_disable_warning(alarmWarning.AltitudeBeep);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_minheight) {
-            if (alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MinHeight = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MinHeight = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MinHeight = enable_disable_warning(alarmWarning.MinHeight);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxheight) {
-            if (alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MaxHeight = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MaxHeight = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MaxHeight = enable_disable_warning(alarmWarning.MaxHeight);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
@@ -858,33 +846,18 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         bool edit_minspeed_value    = (edit_mode && (current_line == 7));
 
         if (edit_maxdistance) {
-            if (alarmWarning.MaxDistance == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MaxDistance = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MaxDistance = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MaxDistance = enable_disable_warning(alarmWarning.MaxDistance);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_minspeed) {
-            if (alarmWarning.MinSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MinSpeed = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MinSpeed = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MinSpeed = enable_disable_warning(alarmWarning.MinSpeed);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxspeed) {
-            if (alarmWarning.MaxSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MaxSpeed = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MaxSpeed = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MaxSpeed = enable_disable_warning(alarmWarning.MaxSpeed);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxdistance_value) {
@@ -894,11 +867,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxspeed_value) {
+            // 0kmh to 600kmh
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             alarmLimits.MaxSpeed = get_new_value((int16_t)alarmLimits.MaxSpeed, value_change, step, 0, 600);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_minspeed_value) {
+            // 0kmh to 150kmh
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             alarmLimits.MinSpeed = get_new_value((int16_t)alarmLimits.MinSpeed, value_change, step, 0, 600);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
@@ -941,33 +916,18 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         bool edit_maxusedcapacity_value = (edit_mode && (current_line == 7));
 
         if (edit_minvoltage) {
-            if (alarmWarning.MinPowerVoltage == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MinPowerVoltage = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MinPowerVoltage = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MinPowerVoltage = enable_disable_warning(alarmWarning.MinPowerVoltage);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxcurrent) {
-            if (alarmWarning.MaxCurrent == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MaxCurrent = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MaxCurrent = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MaxCurrent = enable_disable_warning(alarmWarning.MaxCurrent);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
         if (edit_maxusedcapacity) {
-            if (alarmWarning.MaxUsedCapacity == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
-                alarmWarning.MaxUsedCapacity = HOTTBRIDGESETTINGS_WARNING_ENABLED;
-            } else {
-                alarmWarning.MaxUsedCapacity = HOTTBRIDGESETTINGS_WARNING_DISABLED;
-            }
+            alarmWarning.MaxUsedCapacity = enable_disable_warning(alarmWarning.MaxUsedCapacity);
             HoTTBridgeSettingsWarningSet(&alarmWarning);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
@@ -1082,46 +1042,29 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         if (edit_mode) {
             switch (current_line) {
             case 2:
-                if (sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
-                    sensor.VARIO = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
-                } else {
-                    sensor.VARIO = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
-                }
+                sensor.VARIO = enable_disable_sensor(sensor.VARIO);
                 break;
             case 3:
-                if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
-                    sensor.GPS = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
-                } else {
-                    sensor.GPS = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
-                }
+                sensor.GPS   = enable_disable_sensor(sensor.GPS);
                 break;
             case 4:
-                if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
-                    sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                sensor.EAM   = enable_disable_sensor(sensor.EAM);
+                if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                     // no need to emulate General module
                     sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
-                } else {
-                    sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
                 }
                 break;
             case 5:
-                if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
-                    sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+                sensor.GAM = enable_disable_sensor(sensor.GAM);
+                if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                     // no need to emulate Electric module
                     sensor.EAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
-                } else {
-                    sensor.GAM = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
                 }
                 break;
             case 6:
-                if (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
-                    sensor.ESC = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
-                } else {
-                    sensor.ESC = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
-                }
+                sensor.ESC = enable_disable_sensor(sensor.ESC);
             }
             HoTTBridgeSettingsSensorSet(&sensor);
-            UAVObjSave(HoTTBridgeSettingsHandle(), 0);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
@@ -1232,6 +1175,32 @@ uint8_t get_page(uint8_t page, bool next)
         }
     }
     return page;
+}
+
+/**
+ * change Hott Warning state
+ */
+uint8_t enable_disable_warning(uint8_t value)
+{
+    if (value == HOTTBRIDGESETTINGS_WARNING_DISABLED) {
+        value = HOTTBRIDGESETTINGS_WARNING_ENABLED;
+    } else {
+        value = HOTTBRIDGESETTINGS_WARNING_DISABLED;
+    }
+    return value;
+}
+
+/**
+ * change emulated Hott sensor state
+ */
+uint8_t enable_disable_sensor(uint8_t value)
+{
+    if (value == HOTTBRIDGESETTINGS_SENSOR_DISABLED) {
+        value = HOTTBRIDGESETTINGS_SENSOR_ENABLED;
+    } else {
+        value = HOTTBRIDGESETTINGS_SENSOR_DISABLED;
+    }
+    return value;
 }
 
 /**
