@@ -147,6 +147,16 @@
 #define HOTT_TONE_X             24      // maximum input voltage
 #define HOTT_TONE_Y             25      // maximum rpm
 #define HOTT_TONE_Z             26      // maximum height
+#define HOTT_TONE_27            27      // sudden descent
+#define HOTT_TONE_28            28      // fast descent
+#define HOTT_TONE_29            29      // normal descent
+#define HOTT_TONE_30            30      // slow descent
+#define HOTT_TONE_31            31      // very slow descent
+#define HOTT_TONE_32            32      // very slow rise
+#define HOTT_TONE_33            33      // slow rise
+#define HOTT_TONE_34            34      // normal rise
+#define HOTT_TONE_35            35      // fast rise
+#define HOTT_TONE_36            36      // sudden rise
 #define HOTT_TONE_20M           37      // 20 meters
 #define HOTT_TONE_40M           38      // 40 meters
 #define HOTT_TONE_60M           39      // 60 meters
@@ -158,7 +168,7 @@
 #define HOTT_TONE_400M          47      // 400 meters
 #define HOTT_TONE_600M          48      // 600 meters
 #define HOTT_TONE_800M          49      // 800 meters
-#define HOTT_TONE_1000M         50      // 10000 meters
+#define HOTT_TONE_1000M         50      // 1000 meters
 #define HOTT_TONE_51            51      // maximum servo temperature
 #define HOTT_TONE_52            52      // maximum servo position difference
 
@@ -215,9 +225,11 @@ struct telemetrydata {
 
 // HoTT menu
 static const char *const hottTextPageTitle[] = {
-    "***LIBREPILOT Hott***",
+    "**LIBREPILOT HoTT****",
+    "**LIBREPILOT CONFIG**",
     "*****GPS CONFIG******",
-    "-----VARIO PAGE------",
+    "---VARIO WARNINGS----",
+    "----VARIO LIMITS-----",
     "------GPS PAGE-------",
     "--GENERAL AIR PAGE---",
     "--ELECTRIC AIR PAGE--",
@@ -225,16 +237,18 @@ static const char *const hottTextPageTitle[] = {
 };
 
 typedef enum {
-    HOTTTEXT_PAGE_MAIN      = 0,
-    HOTTTEXT_PAGE_GPSCONFIG = 1,
-    HOTTTEXT_PAGE_VARIO     = 2,
-    HOTTTEXT_PAGE_GPS = 3,
-    HOTTTEXT_PAGE_GENERAL   = 4,
-    HOTTTEXT_PAGE_ELECTRIC  = 5,
-    HOTTTEXT_PAGE_ESC = 6,
+    HOTTTEXT_PAGE_MAIN = 0,
+    HOTTTEXT_PAGE_MAINCONFIG    = 1,
+    HOTTTEXT_PAGE_GPSCONFIG     = 2,
+    HOTTTEXT_PAGE_VARIOWARNINGS = 3,
+    HOTTTEXT_PAGE_VARIOLIMITS   = 4,
+    HOTTTEXT_PAGE_GPS      = 5,
+    HOTTTEXT_PAGE_GENERAL  = 6,
+    HOTTTEXT_PAGE_ELECTRIC = 7,
+    HOTTTEXT_PAGE_ESC      = 8,
 } hottTextPageElem;
 
-#define HOTTTEXT_PAGE_NUMELEM 7
+#define HOTTTEXT_PAGE_NUMELEM 9
 
 typedef enum {
     HOTTTEXT_EDITSTATUS_STEP1   = 0,
@@ -244,6 +258,18 @@ typedef enum {
     HOTTTEXT_EDITSTATUS_STEP10K = 4,
     HOTTTEXT_EDITSTATUS_DONE    = 5,
 } hottTextEditStatusElem;
+
+static const char *const hottTextADCpinNames[] = {
+    "----",
+    "ADC0",
+    "ADC1",
+    "ADC2",
+    "ADC3",
+    "ADC4",
+    "ADC5",
+    "ADC6",
+    "ADC7"
+};
 
 // VARIO Module message structure
 struct hott_vario_message {

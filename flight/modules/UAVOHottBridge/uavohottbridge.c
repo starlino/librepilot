@@ -53,6 +53,8 @@
 #include "velocitystate.h"
 #include "hottbridgestatus.h"
 #include "hottbridgesettings.h"
+#include "flightbatterysettings.h"
+#include "hwsettings.h"
 #include "revosettings.h"
 #include "gpssettings.h"
 #include "homelocation.h"
@@ -65,11 +67,13 @@
 #if defined(PIOS_INCLUDE_HOTT_BRIDGE)
 
 #if defined(PIOS_HoTT_STACK_SIZE)
-#define STACK_SIZE_BYTES PIOS_HoTT_STACK_SIZE
+#define STACK_SIZE_BYTES    PIOS_HoTT_STACK_SIZE
 #else
-#define STACK_SIZE_BYTES 2048
+#define STACK_SIZE_BYTES    2048
 #endif
-#define TASK_PRIORITY    CALLBACK_TASK_AUXILIARY
+#define TASK_PRIORITY       CALLBACK_TASK_AUXILIARY
+
+#define ADC_XX_PIN_NOTFOUND -1
 
 static bool module_enabled = false;
 
@@ -91,9 +95,10 @@ static uint8_t get_page(uint8_t page, bool next);
 static uint8_t enable_disable_warning(uint8_t value);
 static uint8_t enable_disable_sensor(uint8_t value);
 static int16_t get_new_value(int16_t current_value, int8_t value_change, uint8_t step, int16_t min, int16_t max);
+static int8_t get_newADCPin_value(uint8_t *adcRouting, int8_t from_pin, int8_t value_change);
 static uint8_t calc_checksum(uint8_t *data, uint16_t size);
 static uint8_t generate_warning();
-static void store_settings(uint8_t page);
+static void store_settings(uint8_t page, uint8_t current_line);
 static void update_telemetrydata();
 static void convert_long2gps(int32_t value, uint8_t *dir, uword_t *min, uword_t *sec);
 static uint8_t scale_float2uint8(float value, float scale, float offset);
@@ -219,9 +224,9 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             int8_t value_change   = 0;
             static uint8_t step_change = 0;
 
-            // define allowed edited lines for Main, GPS config, Vario, Gps, General, Electric and Esc pages
-            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2 };
-            uint8_t max_line[]  = { 6, 5, 7, 7, 7, 7, 7 };
+            // define allowed edited lines for Main, Main Config, GPS config, VarioWarnings, VarioLimits, GPS, General, Electric and Esc pages
+            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2 };
+            uint8_t max_line[]  = { 6, 7, 5, 8, 7, 7, 7, 7, 7 };
 
             static uint8_t page = HOTTTEXT_PAGE_MAIN;
             static uint8_t edit_status  = HOTTTEXT_EDITSTATUS_DONE;
@@ -251,7 +256,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                     value_change = 0;
                     step_change  = 0;
                     if (edit_status != HOTTTEXT_EDITSTATUS_DONE) {
-                        store_settings(page);
+                        store_settings(page, current_line);
                         edit_line = false; // exit edit mode
                     }
                     break;
@@ -285,7 +290,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             // (this inhibit normal page browsing and give direct access to sensor page)
             switch (id_sensor) {
             case (HOTT_VARIO_ID & 0x0f):
-                page = HOTTTEXT_PAGE_VARIO;
+                page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             case (HOTT_GPS_ID & 0x0f):
                 page = HOTTTEXT_PAGE_GPS;
@@ -319,7 +324,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             message_size = sizeof(tx_buffer);
             if (edit_status == HOTTTEXT_EDITSTATUS_DONE) {
                 // Save and exit edit mode
-                store_settings(page);
+                store_settings(page, current_line);
                 edit_line = false;
             } else if (edit_line) {
                 step_change = edit_status;
@@ -704,6 +709,8 @@ uint16_t build_ESC_message(struct hott_esc_message *msg)
 
 uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t current_line, int8_t value_change, uint8_t step, bool edit_mode, bool exit_menu)
 {
+    update_telemetrydata();
+
     // clear message buffer
     memset(msg, 0, sizeof(*msg));
 
@@ -717,31 +724,30 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     HoTTBridgeSettingsLimitData alarmLimits;
     HoTTBridgeSettingsWarningData alarmWarning;
     RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
+    FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
     HomeLocationSetOptions homeSet;
     GPSSettingsData gpsSettings;
+    uint8_t adcRouting[HWSETTINGS_ADCROUTING_NUMELEM];
 
     uint8_t edit_status = step;
-    bool ekf_enabled    = false;
 
     // page title
     snprintf(msg->text[0], HOTT_TEXT_COLUMNS, "%s", hottTextPageTitle[page]); // line 1
 
     // compute page content
     switch (page) {
-    case HOTTTEXT_PAGE_VARIO: // Vario page
-        if (RevoSettingsHandle() != NULL) {
-            RevoSettingsFusionAlgorithmGet(&revoFusionAlgo);
-        }
+    case HOTTTEXT_PAGE_VARIOWARNINGS: // Vario page (Warnings)
         if (HoTTBridgeSettingsHandle() != NULL) {
             HoTTBridgeSettingsWarningGet(&alarmWarning);
-            HoTTBridgeSettingsLimitGet(&alarmLimits);
         }
 
-        bool edit_altitudebeep    = (edit_mode && (current_line == 2));
-        bool edit_maxheight       = (edit_mode && (current_line == 3));
-        bool edit_minheight       = (edit_mode && (current_line == 4));
-        bool edit_maxheight_value = (edit_mode && (current_line == 5));
-        bool edit_minheight_value = (edit_mode && (current_line == 6));
+        bool edit_altitudebeep = (edit_mode && (current_line == 2));
+        bool edit_maxheight    = (edit_mode && (current_line == 3));
+        bool edit_minheight    = (edit_mode && (current_line == 4));
+        bool edit_sinkrate1s   = (edit_mode && (current_line == 5));
+        bool edit_climbrate1s  = (edit_mode && (current_line == 6));
+        bool edit_sinkrate3s   = (edit_mode && (current_line == 7));
+        bool edit_climbrate3s  = (edit_mode && (current_line == 8));
 
         if (edit_altitudebeep) {
             alarmWarning.AltitudeBeep = enable_disable_warning(alarmWarning.AltitudeBeep);
@@ -759,6 +765,50 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
+        if (edit_sinkrate1s) {
+            alarmWarning.NegDifference1 = enable_disable_warning(alarmWarning.NegDifference1);
+            HoTTBridgeSettingsWarningSet(&alarmWarning);
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
+        }
+        if (edit_climbrate1s) {
+            alarmWarning.PosDifference1 = enable_disable_warning(alarmWarning.PosDifference1);
+            HoTTBridgeSettingsWarningSet(&alarmWarning);
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
+        }
+        if (edit_sinkrate3s) {
+            alarmWarning.NegDifference2 = enable_disable_warning(alarmWarning.NegDifference2);
+            HoTTBridgeSettingsWarningSet(&alarmWarning);
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
+        }
+        if (edit_climbrate3s) {
+            alarmWarning.PosDifference2 = enable_disable_warning(alarmWarning.PosDifference2);
+            HoTTBridgeSettingsWarningSet(&alarmWarning);
+            edit_status = HOTTTEXT_EDITSTATUS_DONE;
+        }
+
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Altitude speak  [%1s] ", ((alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxHeight       [%1s] ", ((alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinHeight       [%1s] ", ((alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Instant Sink    [%1s] ", ((alarmWarning.NegDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Instant Climb   [%1s] ", ((alarmWarning.PosDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink       [%1s] ", ((alarmWarning.NegDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Climb      [%1s] ", ((alarmWarning.PosDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 8
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        break;
+    case HOTTTEXT_PAGE_VARIOLIMITS: // Vario page (Limits)
+        if (HoTTBridgeSettingsHandle() != NULL) {
+            HoTTBridgeSettingsLimitGet(&alarmLimits);
+        }
+
+        bool edit_maxheight_value   = (edit_mode && (current_line == 2));
+        bool edit_minheight_value   = (edit_mode && (current_line == 3));
+        bool edit_sinkrate1s_value  = (edit_mode && (current_line == 4));
+        bool edit_climbrate1s_value = (edit_mode && (current_line == 5));
+        bool edit_sinkrate3s_value  = (edit_mode && (current_line == 6));
+        bool edit_climbrate3s_value = (edit_mode && (current_line == 7));
+
         if (edit_minheight_value) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // -500 to 500m
@@ -771,65 +821,50 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             alarmLimits.MaxHeight = get_new_value((int16_t)alarmLimits.MaxHeight, value_change, step, -500, 1500);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
-
-        char *txt_fusionalgo = "";
-        // check current algo status
-        switch (revoFusionAlgo) {
-        case REVOSETTINGS_FUSIONALGORITHM_INS13INDOOR:
-        case REVOSETTINGS_FUSIONALGORITHM_TESTINGINSINDOORCF:
-            txt_fusionalgo = "* EKF INDOOR NOGPS * ";
-            ekf_enabled    = true;
-            break;
-        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13:
-        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13CF:
-            txt_fusionalgo = " * EKF OUTDOOR GPS * ";
-            ekf_enabled    = true;
-            break;
-        case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
-        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAG:
-        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAGGPSOUTDOOR:
-        default:
-            txt_fusionalgo = "   * BASIC ALGO *    ";
-            ekf_enabled    = false;
+        if (edit_sinkrate1s_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP10) ? HOTTTEXT_EDITSTATUS_STEP10 : step;
+            // 0 to -50m
+            alarmLimits.NegDifference1 = get_new_value((int16_t)alarmLimits.NegDifference1, value_change, step, -50, 0);
+            HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
-        if (edit_mode && (current_line == 7)) {
-            // check if a GPS is available
-            bool gps_ok = (telestate->SysAlarms.Alarm.GPS != SYSTEMALARMS_ALARM_UNINITIALISED) && (telestate->SysAlarms.Alarm.GPS != SYSTEMALARMS_ALARM_ERROR);
-            if (gps_ok) {
-                if (ekf_enabled) {
-                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY; // move to Basic (no mag needed)
-                } else {
-                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13CF; // move to ekf
-                }
-            } else {
-                // without GPS
-                if (ekf_enabled) {
-                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY; // move to Basic (no mag needed)
-                } else {
-                    revoFusionAlgo = REVOSETTINGS_FUSIONALGORITHM_TESTINGINSINDOORCF; // move to ekf
-                }
-            }
-            RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
-            UAVObjSave(RevoSettingsHandle(), 0);
-            edit_status = HOTTTEXT_EDITSTATUS_DONE;
+        if (edit_climbrate1s_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP10) ? HOTTTEXT_EDITSTATUS_STEP10 : step;
+            // 0 to 50m
+            alarmLimits.PosDifference1 = get_new_value((int16_t)alarmLimits.PosDifference1, value_change, step, 0, 50);
+            HoTTBridgeSettingsLimitSet(&alarmLimits);
+        }
+        if (edit_sinkrate3s_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
+            // 0 to -500m
+            alarmLimits.NegDifference2 = get_new_value((int16_t)alarmLimits.NegDifference2, value_change, step, -500, 0);
+            HoTTBridgeSettingsLimitSet(&alarmLimits);
+        }
+        if (edit_climbrate3s_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
+            // 0 to 500m
+            alarmLimits.PosDifference2 = get_new_value((int16_t)alarmLimits.PosDifference2, value_change, step, 0, 500);
+            HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Altitude speak  [%1s] ", ((alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxHeight warn  [%1s] ", ((alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinHeight warn  [%1s] ", ((alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Max height     %4d ", (int16_t)alarmLimits.MaxHeight); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Min height     %4d ", (int16_t)alarmLimits.MinHeight); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Use EKF algo    [%1s] ", ((ekf_enabled) ? "*" : " ")); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%s", txt_fusionalgo); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Max height     %4d ", (int16_t)alarmLimits.MaxHeight); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min height     %4d ", (int16_t)alarmLimits.MinHeight); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Inst. Sink m/s  %3d ", (int16_t)alarmLimits.NegDifference1); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Inst. Climb m/s %3d ", (int16_t)alarmLimits.PosDifference1); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Fast Sink m/3s %4d ", (int16_t)alarmLimits.NegDifference2); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Climb m/3s%4d ", (int16_t)alarmLimits.PosDifference2); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
 
-        if (edit_minheight_value) {
+        if (edit_minheight_value || edit_maxheight_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 16 + (3 - step), 20 - step);
         }
-        if (edit_maxheight_value) {
-            reverse_pixels((char *)msg->text[current_line - 1], 16 + (3 - step), 20 - step);
+        if (edit_sinkrate1s_value || edit_climbrate1s_value) {
+            reverse_pixels((char *)msg->text[current_line - 1], 18 + (1 - step), 20 - step);
+        }
+        if (edit_sinkrate3s_value || edit_climbrate3s_value) {
+            reverse_pixels((char *)msg->text[current_line - 1], 17 + (2 - step), 20 - step);
         }
         break;
     case HOTTTEXT_PAGE_GPS: // GPS page
@@ -860,6 +895,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsWarningSet(&alarmWarning);
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
+
         if (edit_maxdistance_value) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
             // 10m to 9000m
@@ -867,18 +903,17 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_maxspeed_value) {
-            // 0kmh to 600kmh
+            // 0kmh to 1000kmh
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
-            alarmLimits.MaxSpeed = get_new_value((int16_t)alarmLimits.MaxSpeed, value_change, step, 0, 600);
+            alarmLimits.MaxSpeed = get_new_value((int16_t)alarmLimits.MaxSpeed, value_change, step, 0, 1000);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
         if (edit_minspeed_value) {
-            // 0kmh to 150kmh
+            // 0kmh to 1000kmh
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
-            alarmLimits.MinSpeed = get_new_value((int16_t)alarmLimits.MinSpeed, value_change, step, 0, 600);
+            alarmLimits.MinSpeed = get_new_value((int16_t)alarmLimits.MinSpeed, value_change, step, 0, 1000);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
-
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MaxDist warn    [%1s] ", ((alarmWarning.MaxDistance == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
         snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxSpeed warn   [%1s] ", ((alarmWarning.MaxSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
         snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinSpeed warn   [%1s] ", ((alarmWarning.MinSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
@@ -1010,7 +1045,6 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
         snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
         snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
-
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1032,6 +1066,129 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         }
         if (edit_ubxrate_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 18, 20);
+        }
+        break;
+    case HOTTTEXT_PAGE_MAINCONFIG:
+        if (RevoSettingsHandle() != NULL) {
+            RevoSettingsFusionAlgorithmGet(&revoFusionAlgo);
+        }
+        if (FlightBatterySettingsHandle() != NULL) {
+            FlightBatterySettingsSensorCalibrationsGet(&battSensorCalibration);
+        }
+        if (HwSettingsHandle() != NULL) {
+            HwSettingsADCRoutingArrayGet(adcRouting);
+        }
+        if (edit_mode && (current_line == 2)) {
+            if ((value_change > 0) && (revoFusionAlgo < REVOSETTINGS_FUSIONALGORITHM_ACRONOSENSORS)) {
+                revoFusionAlgo++;
+            } else if ((value_change < 0) && (revoFusionAlgo > REVOSETTINGS_FUSIONALGORITHM_NONE)) {
+                revoFusionAlgo--;
+            }
+            RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
+        }
+        if (edit_mode && (current_line == 3)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
+            // 1.00 to 30.00
+            battSensorCalibration.VoltageFactor = (float)(get_new_value((uint16_t)roundf(battSensorCalibration.VoltageFactor * 100), value_change, step, 100, 3000) / 100.0f);
+            FlightBatterySettingsSensorCalibrationsSet(&battSensorCalibration);
+        }
+        if (edit_mode && (current_line == 4)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
+            // 1.00 to 30.00
+            battSensorCalibration.CurrentFactor = (float)(get_new_value((uint16_t)roundf(battSensorCalibration.CurrentFactor * 100), value_change, step, 100, 3000) / 100.0f);
+            FlightBatterySettingsSensorCalibrationsSet(&battSensorCalibration);
+        }
+        if (edit_mode && (current_line == 5)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
+            // -9.00 to 9.00
+            battSensorCalibration.CurrentZero = (float)(get_new_value((int16_t)roundf(battSensorCalibration.CurrentZero * 100), value_change, step, -900, 900) / 100.0f);
+            FlightBatterySettingsSensorCalibrationsSet(&battSensorCalibration);
+        }
+
+        int8_t voltageADCPin = ADC_XX_PIN_NOTFOUND;
+        int8_t currentADCPin = ADC_XX_PIN_NOTFOUND;
+        int8_t newADCPin     = ADC_XX_PIN_NOTFOUND;
+
+        for (int i = 0; i < HWSETTINGS_ADCROUTING_NUMELEM; i++) {
+            if (adcRouting[i] == HWSETTINGS_ADCROUTING_BATTERYVOLTAGE) {
+                voltageADCPin = i;
+            }
+            if (adcRouting[i] == HWSETTINGS_ADCROUTING_BATTERYCURRENT) {
+                currentADCPin = i;
+            }
+        }
+
+        if (edit_mode && (current_line == 6)) {
+            newADCPin = get_newADCPin_value(adcRouting, voltageADCPin, value_change);
+            adcRouting[voltageADCPin] = HWSETTINGS_ADCROUTING_DISABLED;
+            if (newADCPin > ADC_XX_PIN_NOTFOUND) {
+                adcRouting[newADCPin] = HWSETTINGS_ADCROUTING_BATTERYVOLTAGE;
+            }
+            HwSettingsADCRoutingArraySet(adcRouting);
+        }
+        if (edit_mode && (current_line == 7)) {
+            newADCPin = get_newADCPin_value(adcRouting, currentADCPin, value_change);
+            adcRouting[currentADCPin] = HWSETTINGS_ADCROUTING_DISABLED;
+            if (newADCPin > ADC_XX_PIN_NOTFOUND) {
+                adcRouting[newADCPin] = HWSETTINGS_ADCROUTING_BATTERYCURRENT;
+            }
+            HwSettingsADCRoutingArraySet(adcRouting);
+        }
+
+        char *txt_fusionalgo = "";
+        // check current algo status
+        switch (revoFusionAlgo) {
+        case REVOSETTINGS_FUSIONALGORITHM_INS13INDOOR:
+            txt_fusionalgo = " INS NOGPS ";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_TESTINGINSINDOORCF:
+            txt_fusionalgo = "INS+CFNOGPS";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13:
+            txt_fusionalgo = "  INS GPS  ";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_GPSNAVIGATIONINS13CF:
+            txt_fusionalgo = " INS+CF GPS";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
+            txt_fusionalgo = "   BASIC   ";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAG:
+            txt_fusionalgo = " BASIC+MAG ";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAGGPSOUTDOOR:
+            txt_fusionalgo = "BASICMAGGPS";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_ACRONOSENSORS:
+            txt_fusionalgo = " ??ACRO??  ";
+            break;
+        case REVOSETTINGS_FUSIONALGORITHM_NONE:
+            txt_fusionalgo = " ??NONE??  ";
+            break;
+        default:
+            txt_fusionalgo = "!UNDEFINED!";
+        }
+
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " EstAlgo %s ", txt_fusionalgo); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Volt. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.VoltageFactor), (uint16_t)(battSensorCalibration.VoltageFactor * 100) % 100); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Curr. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.CurrentFactor), (uint16_t)(battSensorCalibration.CurrentFactor * 100) % 100); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Curr. Zero    %s%d.%02d ", (battSensorCalibration.CurrentZero < 0 ? "-" : " "), (uint16_t)(fabsf(battSensorCalibration.CurrentZero)), (uint16_t)(fabsf(battSensorCalibration.CurrentZero * 100)) % 100); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " VoltagePin     %s ", hottTextADCpinNames[voltageADCPin + 1]); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " CurrentPin     %s ", hottTextADCpinNames[currentADCPin + 1]); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d.%02dV %3d.%02dA      ",
+                 (uint16_t)(telestate->Battery.Voltage), (uint16_t)(telestate->Battery.Voltage * 100) % 100,
+                 (uint16_t)(telestate->Battery.Current), (uint16_t)(telestate->Battery.Current * 100) % 100); // line 8
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        if (edit_mode && (current_line == 2)) {
+            reverse_pixels((char *)msg->text[current_line - 1], 9, 20);
+        }
+        if (edit_mode && ((current_line == 3) || (current_line == 4) || (current_line == 5))) {
+            reverse_pixels((char *)msg->text[current_line - 1], 14 + (5 - (step > 1 ? step + 1 : step)), 20 - (step > 1 ? step + 1 : step));
+        }
+        if (edit_mode && ((current_line == 6) || (current_line == 7))) {
+            reverse_pixels((char *)msg->text[current_line - 1], 16, 20);
         }
         break;
     default:
@@ -1105,16 +1262,28 @@ uint8_t get_page(uint8_t page, bool next)
     if (next) {
         switch (page) {
         case HOTTTEXT_PAGE_MAIN:
+            page = HOTTTEXT_PAGE_MAINCONFIG;
+            break;
+        case HOTTTEXT_PAGE_MAINCONFIG:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
         case HOTTTEXT_PAGE_GPSCONFIG:
-            if (sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
-                page = HOTTTEXT_PAGE_VARIO;
+            if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             }
-        case HOTTTEXT_PAGE_VARIO:
+        case HOTTTEXT_PAGE_VARIOWARNINGS:
+            if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_VARIOLIMITS;
+                break;
+            }
+        case HOTTTEXT_PAGE_VARIOLIMITS:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPS;
                 break;
@@ -1157,16 +1326,28 @@ uint8_t get_page(uint8_t page, bool next)
                 break;
             }
         case HOTTTEXT_PAGE_GPS:
-            if (sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
-                page = HOTTTEXT_PAGE_VARIO;
+            if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_VARIOLIMITS;
                 break;
             }
-        case HOTTTEXT_PAGE_VARIO:
+        case HOTTTEXT_PAGE_VARIOLIMITS:
+            if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_VARIOWARNINGS;
+                break;
+            }
+        case HOTTTEXT_PAGE_VARIOWARNINGS:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
         case HOTTTEXT_PAGE_GPSCONFIG:
+            page = HOTTTEXT_PAGE_MAINCONFIG;
+            break;
+        case HOTTTEXT_PAGE_MAINCONFIG:
             page = HOTTTEXT_PAGE_MAIN;
             break;
         case HOTTTEXT_PAGE_MAIN:
@@ -1203,6 +1384,36 @@ uint8_t enable_disable_sensor(uint8_t value)
     return value;
 }
 
+
+/**
+ * get new ADCPin for edited field
+ */
+int8_t get_newADCPin_value(uint8_t *adcRouting, int8_t from_pin, int8_t value_change)
+{
+    int8_t newADCPin = from_pin;
+
+    if (value_change > 0) {
+        for (int i = from_pin + 1; i < HWSETTINGS_ADCROUTING_NUMELEM; i++) {
+            if (adcRouting[i] == HWSETTINGS_ADCROUTING_DISABLED) {
+                newADCPin = i;
+                break;
+            }
+        }
+    } else if (value_change < 0) {
+        for (int i = from_pin - 1; i > ADC_XX_PIN_NOTFOUND - 1; i--) {
+            if (i < 0) {
+                newADCPin = ADC_XX_PIN_NOTFOUND;
+                break;
+            }
+            if (adcRouting[i] == HWSETTINGS_ADCROUTING_DISABLED) {
+                newADCPin = i;
+                break;
+            }
+        }
+    }
+    return newADCPin;
+}
+
 /**
  * get new value for edited field
  */
@@ -1224,11 +1435,12 @@ int16_t get_new_value(int16_t current_value, int8_t value_change, uint8_t step, 
 /**
  * store settings to onboard flash
  */
-void store_settings(uint8_t page)
+void store_settings(uint8_t page, uint8_t current_line)
 {
     switch (page) {
     case HOTTTEXT_PAGE_MAIN:
-    case HOTTTEXT_PAGE_VARIO:
+    case HOTTTEXT_PAGE_VARIOWARNINGS:
+    case HOTTTEXT_PAGE_VARIOLIMITS:
     case HOTTTEXT_PAGE_GPS:
     case HOTTTEXT_PAGE_GENERAL:
     case HOTTTEXT_PAGE_ELECTRIC:
@@ -1238,6 +1450,21 @@ void store_settings(uint8_t page)
     case HOTTTEXT_PAGE_GPSCONFIG:
         UAVObjSave(GPSSettingsHandle(), 0);
         break;
+    case HOTTTEXT_PAGE_MAINCONFIG:
+        switch (current_line) {
+        case 2:
+            UAVObjSave(RevoSettingsHandle(), 0);
+            break;
+        case 3:
+        case 4:
+        case 5:
+            UAVObjSave(FlightBatterySettingsHandle(), 0);
+            break;
+        case 6:
+        case 7:
+            UAVObjSave(HwSettingsHandle(), 0);
+            break;
+        }
     }
 }
 
@@ -1494,11 +1721,12 @@ uint8_t generate_warning()
     }
     if ((telestate->Settings.Warning.NegDifference2 == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
         (telestate->Settings.Limit.NegDifference2 > telestate->climbrate3s)) {
-        return HOTT_TONE_B; // sink rate 3s
+        return HOTT_TONE_28; // fast descent
     }
     if ((telestate->Settings.Warning.NegDifference1 == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
-        (telestate->Settings.Limit.NegDifference1 > telestate->climbrate1s)) {
-        return HOTT_TONE_C; // sink rate 1s
+        (telestate->Settings.Limit.NegDifference1 > telestate->climbrate1s) &&
+        ((telestate->Settings.Limit.NegDifference1 * 3) < telestate->climbrate3s)) {
+        return HOTT_TONE_27; // sudden descent
     }
     if ((telestate->Settings.Warning.MaxDistance == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
         (telestate->Settings.Limit.MaxDistance < telestate->homedistance) && gps_ok) {
@@ -1525,12 +1753,13 @@ uint8_t generate_warning()
         return HOTT_TONE_L; // maximum speed
     }
     if ((telestate->Settings.Warning.PosDifference2 == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
-        (telestate->Settings.Limit.PosDifference2 > telestate->climbrate3s)) {
-        return HOTT_TONE_M; // climb rate 3s
+        (telestate->Settings.Limit.PosDifference2 < telestate->climbrate3s)) {
+        return HOTT_TONE_35; // fast rise
     }
     if ((telestate->Settings.Warning.PosDifference1 == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
-        (telestate->Settings.Limit.PosDifference1 > telestate->climbrate1s)) {
-        return HOTT_TONE_N; // climb rate 1s
+        (telestate->Settings.Limit.PosDifference1 < telestate->climbrate1s) &&
+        ((telestate->Settings.Limit.PosDifference1 * 3) > telestate->climbrate3s)) {
+        return HOTT_TONE_36; // sudden rise
     }
     if ((telestate->Settings.Warning.MinHeight == HOTTBRIDGESETTINGS_WARNING_ENABLED) &&
         (telestate->Settings.Limit.MinHeight > telestate->altitude)) {
