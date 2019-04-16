@@ -184,6 +184,22 @@ static const filterPipeline *cfQueue = &(filterPipeline) {
         }
     }
 };
+static const filterPipeline *cfgpsQueue = &(filterPipeline) {
+    .filter = &airFilter,
+    .next   = &(filterPipeline) {
+        .filter = &llaFilter,
+        .next   = &(filterPipeline) {
+            .filter = &baroiFilter,
+            .next   = &(filterPipeline) {
+                .filter = &altitudeFilter,
+                .next   = &(filterPipeline) {
+                    .filter = &cfFilter,
+                    .next   = NULL,
+                }
+            }
+        }
+    }
+};
 static const filterPipeline *cfmiQueue = &(filterPipeline) {
     .filter = &magFilter,
     .next   = &(filterPipeline) {
@@ -440,6 +456,11 @@ static void StateEstimationCb(void)
                 break;
             case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
                 newFilterChain = cfQueue;
+                // reinit Mag alarm
+                AlarmsSet(SYSTEMALARMS_ALARM_MAGNETOMETER, SYSTEMALARMS_ALARM_UNINITIALISED);
+                break;
+            case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYGPSOUTDOOR:
+                newFilterChain = cfgpsQueue;
                 // reinit Mag alarm
                 AlarmsSet(SYSTEMALARMS_ALARM_MAGNETOMETER, SYSTEMALARMS_ALARM_UNINITIALISED);
                 break;
