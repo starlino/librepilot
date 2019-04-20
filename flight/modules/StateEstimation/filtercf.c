@@ -64,13 +64,16 @@ struct data {
     HomeLocationData     homeLocation;
     bool    first_run;
     bool    useMag;
+    bool    useVelHeading;
     float   currentAccel[3];
     float   currentMag[3];
+    float   currentVelHeading[2];
     float   accels_filtered[3];
     float   grot_filtered[3];
     float   gyroBias[3];
     bool    accelUpdated;
     bool    magUpdated;
+    bool    velheadingUpdated;
     float   accel_alpha;
     bool    accel_filter_enabled;
     float   rollPitchBiasRate;
@@ -90,9 +93,10 @@ static FlightStatusData flightStatus;
 
 static int32_t initwithmag(stateFilter *self);
 static int32_t initwithoutmag(stateFilter *self);
+static int32_t initwithvelheading(stateFilter *self);
 static int32_t maininit(stateFilter *self);
 static filterResult filter(stateFilter *self, stateEstimation *state);
-static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float attitude[4]);
+static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float velheading[2], float attitude[4]);
 
 static void flightStatusUpdatedCb(UAVObjEvent *ev);
 
@@ -118,6 +122,15 @@ int32_t filterCFInitialize(stateFilter *handle)
     return STACK_REQUIRED;
 }
 
+int32_t filterCFHInitialize(stateFilter *handle)
+{
+    globalInit();
+    handle->init      = &initwithvelheading;
+    handle->filter    = &filter;
+    handle->localdata = pios_malloc(sizeof(struct data));
+    return STACK_REQUIRED;
+}
+
 int32_t filterCFMInitialize(stateFilter *handle)
 {
     globalInit();
@@ -132,6 +145,16 @@ static int32_t initwithmag(stateFilter *self)
     struct data *this = (struct data *)self->localdata;
 
     this->useMag = 1;
+    this->useVelHeading = 0;
+    return maininit(self);
+}
+
+static int32_t initwithvelheading(stateFilter *self)
+{
+    struct data *this = (struct data *)self->localdata;
+
+    this->useMag = 0;
+    this->useVelHeading = 1;
     return maininit(self);
 }
 
@@ -140,6 +163,7 @@ static int32_t initwithoutmag(stateFilter *self)
     struct data *this = (struct data *)self->localdata;
 
     this->useMag = 0;
+    this->useVelHeading = 0;
     return maininit(self);
 }
 
@@ -184,6 +208,11 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
         this->currentMag[1] = state->mag[1];
         this->currentMag[2] = state->mag[2];
     }
+    if (IS_SET(state->updated, SENSORUPDATES_vel)) {
+        this->velheadingUpdated    = 1;
+        this->currentVelHeading[0] = sqrtf(state->vel[0] * state->vel[0] + state->vel[1] * state->vel[1]);
+        this->currentVelHeading[1] = RAD2DEG(atan2f(-state->vel[1], -state->vel[0])) + 180.0f;
+    }
     if (IS_SET(state->updated, SENSORUPDATES_accel)) {
         this->accelUpdated    = 1;
         this->currentAccel[0] = state->accel[0];
@@ -193,7 +222,7 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
     if (IS_SET(state->updated, SENSORUPDATES_gyro)) {
         if (this->accelUpdated) {
             float attitude[4];
-            result = complementaryFilter(this, state->gyro, this->currentAccel, this->currentMag, attitude);
+            result = complementaryFilter(this, state->gyro, this->currentAccel, this->currentMag, this->currentVelHeading, attitude);
             if (result == FILTERRESULT_OK) {
                 state->attitude[0] = attitude[0];
                 state->attitude[1] = attitude[1];
@@ -203,6 +232,7 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
             }
             this->accelUpdated = 0;
             this->magUpdated   = 0;
+            this->velheadingUpdated = 0;
         }
     }
     return result;
@@ -222,7 +252,7 @@ static inline void apply_accel_filter(const struct data *this, const float *raw,
     }
 }
 
-static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float attitude[4])
+static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float velheading[2], float attitude[4])
 {
     float dT;
 
@@ -396,7 +426,7 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
     accel_err[2] /= (accel_mag * grot_mag);
 
     float mag_err[3] = { 0.0f };
-    if (this->magUpdated && this->useMag) {
+    if (this->magUpdated && this->useMag && !this->useVelHeading) {
         // Rotate gravity to body frame and cross with accels
         float brot[3];
         float Rbe[3][3];
@@ -421,6 +451,28 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
         } else {
             CrossProduct((const float *)mag, (const float *)brot, mag_err);
         }
+    } else if (this->velheadingUpdated && this->useVelHeading) {
+        if (velheading[0] > 3.0f) { // ~11kmh
+            float rpy[3];
+            Quaternion2RPY(attitude, rpy);
+
+            // find shortest way
+            float modulo = fmodf((velheading[1] - rpy[2]) + 180.0f, 360.0f);
+            if (modulo < 0) {
+                modulo += 180.0f;
+            } else {
+                modulo -= 180.0f;
+            }
+            /* From dRonin: The 0.008 is chosen to put things in a somewhat similar scale
+             * to the cross product.  A 45 degree heading error will become
+             * a 7 deg/sec correction, so it neither takes forever to
+             * correct nor does a second of bad heading data screw us up
+             * too badly.
+             */
+            mag_err[2] = modulo * 0.008f;
+        } else {
+            mag_err[0] = mag_err[1] = mag_err[2] = 0.0f;
+        }
     } else {
         mag_err[0] = mag_err[1] = mag_err[2] = 0.0f;
     }
@@ -433,7 +485,7 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
     // Accumulate integral of error.  Scale here so that units are (deg/s) but Ki has units of s
     this->gyroBias[0] -= accel_err[0] * this->attitudeSettings.AccelKi - gyro[0] * this->rollPitchBiasRate;
     this->gyroBias[1] -= accel_err[1] * this->attitudeSettings.AccelKi - gyro[1] * this->rollPitchBiasRate;
-    if (this->useMag) {
+    if (this->useMag || this->useVelHeading) {
         this->gyroBias[2] -= mag_err[2] * this->attitudeSettings.MagKi - gyro[2] * this->rollPitchBiasRate;
     } else {
         this->gyroBias[2] -= -gyro[2] * this->rollPitchBiasRate;
@@ -443,7 +495,7 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
     // Correct rates based on proportional coefficient
     gyrotmp[0] += accel_err[0] * this->attitudeSettings.AccelKp / dT;
     gyrotmp[1] += accel_err[1] * this->attitudeSettings.AccelKp / dT;
-    if (this->useMag) {
+    if (this->useMag || this->useVelHeading) {
         gyrotmp[2] += accel_err[2] * this->attitudeSettings.AccelKp / dT + mag_err[2] * this->attitudeSettings.MagKp / dT;
     } else {
         gyrotmp[2] += accel_err[2] * this->attitudeSettings.AccelKp / dT;
