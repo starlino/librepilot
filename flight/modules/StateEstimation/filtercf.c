@@ -67,13 +67,13 @@ struct data {
     bool    useVelHeading;
     float   currentAccel[3];
     float   currentMag[3];
-    float   currentVelHeading[2];
+    float   currentVel[3];
     float   accels_filtered[3];
     float   grot_filtered[3];
     float   gyroBias[3];
     bool    accelUpdated;
     bool    magUpdated;
-    bool    velheadingUpdated;
+    bool    velUpdated;
     float   accel_alpha;
     bool    accel_filter_enabled;
     float   rollPitchBiasRate;
@@ -209,9 +209,10 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
         this->currentMag[2] = state->mag[2];
     }
     if (IS_SET(state->updated, SENSORUPDATES_vel)) {
-        this->velheadingUpdated    = 1;
-        this->currentVelHeading[0] = sqrtf(state->vel[0] * state->vel[0] + state->vel[1] * state->vel[1]);
-        this->currentVelHeading[1] = RAD2DEG(atan2f(-state->vel[1], -state->vel[0])) + 180.0f;
+        this->velUpdated    = 1;
+        this->currentVel[0] = state->vel[0];
+        this->currentVel[1] = state->vel[1];
+        this->currentVel[2] = state->vel[2];
     }
     if (IS_SET(state->updated, SENSORUPDATES_accel)) {
         this->accelUpdated    = 1;
@@ -222,7 +223,7 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
     if (IS_SET(state->updated, SENSORUPDATES_gyro)) {
         if (this->accelUpdated) {
             float attitude[4];
-            result = complementaryFilter(this, state->gyro, this->currentAccel, this->currentMag, this->currentVelHeading, attitude);
+            result = complementaryFilter(this, state->gyro, this->currentAccel, this->currentMag, this->currentVel, attitude);
             if (result == FILTERRESULT_OK) {
                 state->attitude[0] = attitude[0];
                 state->attitude[1] = attitude[1];
@@ -232,7 +233,7 @@ static filterResult filter(stateFilter *self, stateEstimation *state)
             }
             this->accelUpdated = 0;
             this->magUpdated   = 0;
-            this->velheadingUpdated = 0;
+            this->velUpdated   = 0;
         }
     }
     return result;
@@ -252,7 +253,7 @@ static inline void apply_accel_filter(const struct data *this, const float *raw,
     }
 }
 
-static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float velheading[2], float attitude[4])
+static filterResult complementaryFilter(struct data *this, float gyro[3], float accel[3], float mag[3], float vel[3], float attitude[4])
 {
     float dT;
 
@@ -451,13 +452,16 @@ static filterResult complementaryFilter(struct data *this, float gyro[3], float 
         } else {
             CrossProduct((const float *)mag, (const float *)brot, mag_err);
         }
-    } else if (this->velheadingUpdated && this->useVelHeading) {
-        if (velheading[0] > 3.0f) { // ~11kmh
+    } else if (this->velUpdated && this->useVelHeading) {
+        float speed = sqrtf(vel[0] * vel[0] + vel[1] * vel[1]);
+        if (speed > 3.0f) { // ~11kmh
             float rpy[3];
+
             Quaternion2RPY(attitude, rpy);
+            float heading = RAD2DEG(atan2f(-vel[1], -vel[0])) + 180.0f;
 
             // find shortest way
-            float modulo = fmodf((velheading[1] - rpy[2]) + 180.0f, 360.0f);
+            float modulo  = fmodf((heading - rpy[2]) + 180.0f, 360.0f);
             if (modulo < 0) {
                 modulo += 180.0f;
             } else {
