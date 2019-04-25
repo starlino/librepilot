@@ -1528,7 +1528,7 @@ void update_telemetrydata()
     telestate->climbratebuffer[telestate->climbrate_pointer++] = -telestate->Velocity.Down * 200;
     telestate->climbrate_pointer %= climbratesize;
 
-    // calculate avarage climbrates in meters per 1, 3 and 10 second(s) based on 200ms interval
+    // calculate average climbrates in meters per 1, 3 and 10 second(s) based on 200ms interval
     telestate->climbrate1s  = 0;
     telestate->climbrate3s  = 0;
     telestate->climbrate10s = 0;
@@ -1539,7 +1539,13 @@ void update_telemetrydata()
         n += climbratesize - 1;
         n %= climbratesize;
     }
-    telestate->climbrate1s  = telestate->climbrate1s / 1000;
+    telestate->climbrate1s = telestate->climbrate1s / 1000;
+    // Increase deadband because radio start beeps with climbrate1s > 0, like +0.01m/s
+    // while display shows 0.0
+    if ((telestate->climbrate1s > 0) && (telestate->climbrate1s < 0.1f)) {
+        telestate->climbrate1s = 0.0f;
+    }
+
     telestate->climbrate3s  = telestate->climbrate3s / 1000;
     telestate->climbrate10s = telestate->climbrate10s / 1000;
 
