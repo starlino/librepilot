@@ -73,7 +73,7 @@
 			<elementname>MaxServoDifference</elementname>
 		</elementnames>
 	</field>
-
+        <field name="VarioSensitivity" units="cm/s" type="uint8" elements="1" defaultvalue="10"/>
         <access gcs="readwrite" flight="readwrite"/>
         <telemetrygcs acked="true" updatemode="onchange" period="0"/>
         <telemetryflight acked="true" updatemode="onchange" period="0"/>

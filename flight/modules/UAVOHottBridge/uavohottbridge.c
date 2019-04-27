@@ -226,7 +226,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
 
             // define allowed edited lines for Main, Main Config, GPS config, VarioWarnings, VarioLimits, GPS, General, Electric and Esc pages
             uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2 };
-            uint8_t max_line[]  = { 6, 7, 5, 8, 7, 7, 7, 7, 7 };
+            uint8_t max_line[]  = { 6, 7, 5, 8, 8, 7, 7, 7, 7 };
 
             static uint8_t page = HOTTTEXT_PAGE_MAIN;
             static uint8_t edit_status  = HOTTTEXT_EDITSTATUS_DONE;
@@ -723,6 +723,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     HoTTBridgeSettingsSensorData sensor;
     HoTTBridgeSettingsLimitData alarmLimits;
     HoTTBridgeSettingsWarningData alarmWarning;
+    uint8_t varioSensitivity;
     RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
     FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
     HomeLocationSetOptions homeSet;
@@ -800,15 +801,23 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     case HOTTTEXT_PAGE_VARIOLIMITS: // Vario page (Limits)
         if (HoTTBridgeSettingsHandle() != NULL) {
             HoTTBridgeSettingsLimitGet(&alarmLimits);
+            HoTTBridgeSettingsVarioSensitivityGet(&varioSensitivity);
         }
 
-        bool edit_maxheight_value   = (edit_mode && (current_line == 2));
-        bool edit_minheight_value   = (edit_mode && (current_line == 3));
-        bool edit_sinkrate1s_value  = (edit_mode && (current_line == 4));
-        bool edit_climbrate1s_value = (edit_mode && (current_line == 5));
-        bool edit_sinkrate3s_value  = (edit_mode && (current_line == 6));
-        bool edit_climbrate3s_value = (edit_mode && (current_line == 7));
+        bool edit_sensitivity_value = (edit_mode && (current_line == 2));
+        bool edit_maxheight_value   = (edit_mode && (current_line == 3));
+        bool edit_minheight_value   = (edit_mode && (current_line == 4));
+        bool edit_sinkrate1s_value  = (edit_mode && (current_line == 5));
+        bool edit_climbrate1s_value = (edit_mode && (current_line == 6));
+        bool edit_sinkrate3s_value  = (edit_mode && (current_line == 7));
+        bool edit_climbrate3s_value = (edit_mode && (current_line == 8));
 
+        if (edit_sensitivity_value) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP10) ? HOTTTEXT_EDITSTATUS_STEP10 : step;
+            // 0 to 99cm/s
+            varioSensitivity = get_new_value((int16_t)varioSensitivity, value_change, step, 0, 99);
+            HoTTBridgeSettingsVarioSensitivitySet(&varioSensitivity);
+        }
         if (edit_minheight_value) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // -500 to 500m
@@ -846,13 +855,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Max height     %4d ", (int16_t)alarmLimits.MaxHeight); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min height     %4d ", (int16_t)alarmLimits.MinHeight); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Inst. Sink m/s  %3d ", (int16_t)alarmLimits.NegDifference1); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Inst. Climb m/s %3d ", (int16_t)alarmLimits.PosDifference1); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Fast Sink m/3s %4d ", (int16_t)alarmLimits.NegDifference2); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Climb m/3s%4d ", (int16_t)alarmLimits.PosDifference2); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Sensitivity cm/s%3d ", (int16_t)varioSensitivity); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Max height     %4d ", (int16_t)alarmLimits.MaxHeight); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Min height     %4d ", (int16_t)alarmLimits.MinHeight); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Inst. Sink m/s  %3d ", (int16_t)alarmLimits.NegDifference1); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Inst. Climb m/s %3d ", (int16_t)alarmLimits.PosDifference1); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink m/3s %4d ", (int16_t)alarmLimits.NegDifference2); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Climb m/3s%4d ", (int16_t)alarmLimits.PosDifference2); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -860,7 +869,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         if (edit_minheight_value || edit_maxheight_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 16 + (3 - step), 20 - step);
         }
-        if (edit_sinkrate1s_value || edit_climbrate1s_value) {
+        if (edit_sensitivity_value || edit_sinkrate1s_value || edit_climbrate1s_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 18 + (1 - step), 20 - step);
         }
         if (edit_sinkrate3s_value || edit_climbrate3s_value) {
@@ -1524,6 +1533,13 @@ void update_telemetrydata()
     }
     if (VelocityStateHandle() != NULL) {
         VelocityStateGet(&telestate->Velocity);
+    }
+
+    // Make vario less sensitive in +/-VarioSensitivity range
+    float sensitivity = (float)telestate->Settings.VarioSensitivity / 100.0f;
+    float absVelDown  = fabs(telestate->Velocity.Down);
+    if ((absVelDown < sensitivity) && (absVelDown > 0.0f)) {
+        telestate->Velocity.Down /= ((sensitivity / absVelDown) * (sensitivity / absVelDown));
     }
 
     // send actual climbrate value to ring buffer as mm per 0.2s values
