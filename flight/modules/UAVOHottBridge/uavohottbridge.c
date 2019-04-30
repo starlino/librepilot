@@ -1153,6 +1153,9 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
             txt_fusionalgo = "   BASIC   ";
             break;
+        case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYGPSOUTDOOR:
+            txt_fusionalgo = " BASIC+GPS ";
+            break;
         case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYMAG:
             txt_fusionalgo = " BASIC+MAG ";
             break;
