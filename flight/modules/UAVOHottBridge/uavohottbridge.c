@@ -726,7 +726,10 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     uint8_t varioSensitivity;
     RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
     FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
-    HomeLocationSetOptions homeSet;
+    uint32_t battSensorCapacity;
+    HomeLocationData home;
+
+    HomeLocationSetOptions homeSetFlash;
     GPSSettingsData gpsSettings;
     uint8_t adcRouting[HWSETTINGS_ADCROUTING_NUMELEM];
 
@@ -1020,8 +1023,10 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             GPSSettingsGet(&gpsSettings);
         }
         if (HomeLocationHandle() != NULL) {
+            HomeLocationGet(&home);
             UAVObjLoad(HomeLocationHandle(), 0); // load from flash
-            HomeLocationSetGet(&homeSet);
+            HomeLocationSetGet(&homeSetFlash);
+            HomeLocationSet(&home); // Restore previous home location from RAM
         }
 
         bool edit_savehome      = (edit_mode && (current_line == 2));
@@ -1045,7 +1050,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             GPSSettingsSet(&gpsSettings);
         }
 
-        char *home_set_status = (homeSet == HOMELOCATION_SET_FALSE) ? ((telestate->Home.Set == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
+        char *home_set_status = (homeSetFlash == HOMELOCATION_SET_FALSE) ? ((home.Set == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
 
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s ", home_set_status); // line 2
         snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min satellites    %d ", gpsSettings.MinSatellites); // line 3
@@ -1053,16 +1058,23 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " UBX Rate         %2d ", gpsSettings.UbxRate); // line 5
         snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
         snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d Sats %s PDOP:%2d.%d ",
+                 (uint16_t)(telestate->GPS.Satellites),
+                 ((telestate->GPS.Status > GPSPOSITIONSENSOR_STATUS_FIX2D) ? "3D" : "??"),
+                 (uint16_t)(telestate->GPS.PDOP), (uint16_t)(telestate->GPS.PDOP * 10) % 10); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
 
         if (edit_savehome) {
+            if (home.Set == HOMELOCATION_SET_TRUE) {
+                home.Set = HOMELOCATION_SET_FALSE;
+                HomeLocationSet(&home);
+            }
             // refresh fixed homelocation if any
-            if (homeSet == HOMELOCATION_SET_TRUE) {
-                homeSet = HOMELOCATION_SET_FALSE;
-                HomeLocationSetSet(&homeSet);
+            if (homeSetFlash == HOMELOCATION_SET_TRUE) {
+                homeSetFlash = HOMELOCATION_SET_FALSE;
+                HomeLocationSetSet(&homeSetFlash);
                 UAVObjSave(HomeLocationHandle(), 0);
             }
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
