@@ -154,6 +154,7 @@ static stateFilter airFilter;
 static stateFilter stationaryFilter;
 static stateFilter llaFilter;
 static stateFilter cfFilter;
+static stateFilter cfhFilter;
 static stateFilter cfmFilter;
 static stateFilter ekf13iFilter;
 static stateFilter ekf13Filter;
@@ -180,6 +181,22 @@ static const filterPipeline *cfQueue = &(filterPipeline) {
             .next   = &(filterPipeline) {
                 .filter = &cfFilter,
                 .next   = NULL,
+            }
+        }
+    }
+};
+static const filterPipeline *cfgpsQueue = &(filterPipeline) {
+    .filter = &airFilter,
+    .next   = &(filterPipeline) {
+        .filter = &llaFilter,
+        .next   = &(filterPipeline) {
+            .filter = &baroiFilter,
+            .next   = &(filterPipeline) {
+                .filter = &altitudeFilter,
+                .next   = &(filterPipeline) {
+                    .filter = &cfhFilter,
+                    .next   = NULL,
+                }
             }
         }
     }
@@ -366,6 +383,7 @@ int32_t StateEstimationInitialize(void)
     stack_required = maxint32_t(stack_required, filterStationaryInitialize(&stationaryFilter));
     stack_required = maxint32_t(stack_required, filterLLAInitialize(&llaFilter));
     stack_required = maxint32_t(stack_required, filterCFInitialize(&cfFilter));
+    stack_required = maxint32_t(stack_required, filterCFHInitialize(&cfhFilter));
     stack_required = maxint32_t(stack_required, filterCFMInitialize(&cfmFilter));
     stack_required = maxint32_t(stack_required, filterEKF13iInitialize(&ekf13iFilter));
     stack_required = maxint32_t(stack_required, filterEKF13Initialize(&ekf13Filter));
@@ -440,6 +458,11 @@ static void StateEstimationCb(void)
                 break;
             case REVOSETTINGS_FUSIONALGORITHM_BASICCOMPLEMENTARY:
                 newFilterChain = cfQueue;
+                // reinit Mag alarm
+                AlarmsSet(SYSTEMALARMS_ALARM_MAGNETOMETER, SYSTEMALARMS_ALARM_UNINITIALISED);
+                break;
+            case REVOSETTINGS_FUSIONALGORITHM_COMPLEMENTARYGPSOUTDOOR:
+                newFilterChain = cfgpsQueue;
                 // reinit Mag alarm
                 AlarmsSet(SYSTEMALARMS_ALARM_MAGNETOMETER, SYSTEMALARMS_ALARM_UNINITIALISED);
                 break;
