@@ -152,6 +152,8 @@ UAVOBJS = \
     $${UAVOBJ_XML_DIR}/systemstats.xml \
     $${UAVOBJ_XML_DIR}/takeofflocation.xml \
     $${UAVOBJ_XML_DIR}/taskinfo.xml \
+    $${UAVOBJ_XML_DIR}/temperaturesettings.xml \
+    $${UAVOBJ_XML_DIR}/temperaturestate.xml \
     $${UAVOBJ_XML_DIR}/txpidsettings.xml \
     $${UAVOBJ_XML_DIR}/txpidstatus.xml \
     $${UAVOBJ_XML_DIR}/velocitydesired.xml \
