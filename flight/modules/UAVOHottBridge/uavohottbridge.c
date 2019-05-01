@@ -51,6 +51,7 @@
 #include "positionstate.h"
 #include "systemalarms.h"
 #include "velocitystate.h"
+#include "temperaturestate.h"
 #include "hottbridgestatus.h"
 #include "hottbridgesettings.h"
 #include "flightbatterysettings.h"
@@ -94,6 +95,7 @@ static char *reverse_pixels(char *line, uint8_t from_char, uint8_t to_char);
 static uint8_t get_page(uint8_t page, bool next);
 static uint8_t enable_disable_warning(uint8_t value);
 static uint8_t enable_disable_sensor(uint8_t value);
+static float get_redirect_sensor_value(uint8_t hott_sensor);
 static int16_t get_new_value(int16_t current_value, int8_t value_change, uint8_t step, int16_t min, int16_t max);
 static int8_t get_newADCPin_value(uint8_t *adcRouting, int8_t from_pin, int8_t value_change);
 static uint8_t calc_checksum(uint8_t *data, uint16_t size);
@@ -169,6 +171,9 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
 
     // clear all state values
     memset(telestate, 0, sizeof(*telestate));
+
+    // init minimal values
+    telestate->min_voltage = 100.0f;
 
     // initialize timer variables
     portTickType lastSysTime = xTaskGetTickCount();
@@ -450,9 +455,9 @@ uint16_t build_GPS_message(struct hott_gps_message *msg)
     msg->alarm_inverse1  |= (telestate->Settings.Limit.PosDifference2 < telestate->climbrate3s) ? GPS_INVERT_CR3S : 0;
     msg->alarm_inverse2  |= (telestate->SysAlarms.Alarm.GPS != SYSTEMALARMS_ALARM_OK) ? GPS_INVERT2_POS : 0;
 
-    // gps direction, groundspeed and postition
+    // gps direction, groundspeed and position
     msg->flight_direction = scale_float2uint8(telestate->GPS.Heading, DEG_TO_UINT, 0);
-    msg->gps_speed = scale_float2uword(telestate->GPS.Groundspeed, MS_TO_KMH, 0);
+    msg->gps_speed = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_SPEED), MS_TO_KMH, 0);
     convert_long2gps(telestate->GPS.Latitude, &msg->latitude_ns, &msg->latitude_min, &msg->latitude_sec);
     convert_long2gps(telestate->GPS.Longitude, &msg->longitude_ew, &msg->longitude_min, &msg->longitude_sec);
 
@@ -550,8 +555,8 @@ uint16_t build_GAM_message(struct hott_gam_message *msg)
     msg->alarm_inverse2 |= (telestate->Settings.Limit.PosDifference2 < telestate->climbrate3s) ? GAM_INVERT2_CR3S : 0;
 
     // temperatures
-    msg->temperature1    = scale_float2uint8(telestate->Gyro.temperature, 1, OFFSET_TEMPERATURE);
-    msg->temperature2    = scale_float2uint8(telestate->Baro.Temperature, 1, OFFSET_TEMPERATURE);
+    msg->temperature1    = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1), 1, OFFSET_TEMPERATURE);
+    msg->temperature2    = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2), 1, OFFSET_TEMPERATURE);
 
     // altitude
     msg->altitude    = scale_float2uword(telestate->altitude, 1, OFFSET_ALTITUDE);
@@ -577,18 +582,17 @@ uint16_t build_GAM_message(struct hott_gam_message *msg)
     msg->cell5 = (telestate->Battery.NbCells >= 5) ? cell_voltage : 0;
     msg->cell6 = (telestate->Battery.NbCells >= 6) ? cell_voltage : 0;
 
-    msg->min_cell_volt     = cell_voltage;
+    msg->min_cell_volt     = (telestate->Battery.Voltage > 0) ? scale_float2uint8(telestate->min_voltage / telestate->Battery.NbCells, 50, 0) : 0;
     msg->min_cell_volt_num = telestate->Battery.NbCells;
 
-    // apply main voltage to batt1 voltage
-    msg->batt1_voltage     = msg->voltage;
+    // batt1 and batt2 voltage
+    msg->batt1_voltage     = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY1), 10, 0);
+    msg->batt2_voltage     = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY2), 10, 0);
 
-    // AirSpeed
-    float airspeed = (telestate->Airspeed.TrueAirspeed > 0) ? telestate->Airspeed.TrueAirspeed : 0;
-    msg->speed    = scale_float2uword(airspeed, MS_TO_KMH, 0);
+    // pressure kPa to 0.1Bar, max 25Bar
+    msg->pressure = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_PRESSURE), 10, 0);
 
-    // pressure kPa to 0.1Bar
-    msg->pressure = scale_float2uint8(telestate->Baro.Pressure, 0.1f, 0);
+    msg->rpm = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_RPM), 1, 0);
 
     msg->checksum = calc_checksum((uint8_t *)msg, sizeof(*msg));
     return sizeof(*msg);
@@ -642,30 +646,38 @@ uint16_t build_EAM_message(struct hott_eam_message *msg)
     msg->cell6_H = (telestate->Battery.NbCells >= 6) ? cell_voltage : 0;
     msg->cell7_H = (telestate->Battery.NbCells >= 7) ? cell_voltage : 0;
 
-    // apply main voltage to batt1 voltage
-    msg->batt1_voltage = msg->voltage;
+    uint8_t cell_voltage_min = (telestate->Battery.Voltage > 0) ? scale_float2uint8(telestate->min_voltage / telestate->Battery.NbCells, 50, 0) : 0;
+    msg->cell1_L = (telestate->Battery.NbCells >= 1) ? cell_voltage_min : 0;
+    msg->cell2_L = (telestate->Battery.NbCells >= 2) ? cell_voltage_min : 0;
+    msg->cell3_L = (telestate->Battery.NbCells >= 3) ? cell_voltage_min : 0;
+    msg->cell4_L = (telestate->Battery.NbCells >= 4) ? cell_voltage_min : 0;
+    msg->cell5_L = (telestate->Battery.NbCells >= 5) ? cell_voltage_min : 0;
+    msg->cell6_L = (telestate->Battery.NbCells >= 6) ? cell_voltage_min : 0;
+    msg->cell7_L = (telestate->Battery.NbCells >= 7) ? cell_voltage_min : 0;
 
-    // AirSpeed
-    float airspeed = (telestate->Airspeed.TrueAirspeed > 0) ? telestate->Airspeed.TrueAirspeed : 0;
-    msg->speed = scale_float2uword(airspeed, MS_TO_KMH, 0);
+    // batt1 and batt2 voltage
+    msg->batt1_voltage = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY1), 10, 0);
+    msg->batt2_voltage = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY2), 10, 0);
 
     // temperatures
-    msg->temperature1 = scale_float2uint8(telestate->Gyro.temperature, 1, OFFSET_TEMPERATURE);
-    msg->temperature2 = scale_float2uint8(telestate->Baro.Temperature, 1, OFFSET_TEMPERATURE);
+    msg->temperature1  = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1), 1, OFFSET_TEMPERATURE);
+    msg->temperature2  = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2), 1, OFFSET_TEMPERATURE);
 
     // altitude
-    msg->altitude     = scale_float2uword(telestate->altitude, 1, OFFSET_ALTITUDE);
+    msg->altitude    = scale_float2uword(telestate->altitude, 1, OFFSET_ALTITUDE);
 
     // climbrate
-    msg->climbrate    = scale_float2uword(telestate->climbrate1s, M_TO_CM, OFFSET_CLIMBRATE);
-    msg->climbrate3s  = scale_float2uint8(telestate->climbrate3s, 1, OFFSET_CLIMBRATE3S);
+    msg->climbrate   = scale_float2uword(telestate->climbrate1s, M_TO_CM, OFFSET_CLIMBRATE);
+    msg->climbrate3s = scale_float2uint8(telestate->climbrate3s, 1, OFFSET_CLIMBRATE3S);
 
     // flight time
     float flighttime = (telestate->Battery.EstimatedFlightTime <= 5999) ? telestate->Battery.EstimatedFlightTime : 5999;
     msg->electric_min = flighttime / 60;
     msg->electric_sec = flighttime - 60 * msg->electric_min;
 
-    msg->checksum     = calc_checksum((uint8_t *)msg, sizeof(*msg));
+    msg->rpm = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_RPM), 1, 0);
+
+    msg->checksum = calc_checksum((uint8_t *)msg, sizeof(*msg));
     return sizeof(*msg);
 }
 
@@ -696,12 +708,15 @@ uint16_t build_ESC_message(struct hott_esc_message *msg)
     msg->current = scale_float2uword(current, 10, 0);
     msg->max_current        = scale_float2uword(max_current, 10, 0);
     msg->batt_capacity      = scale_float2uword(energy, 0.1f, 0);
+    msg->min_batt_voltage   = scale_float2uword(telestate->min_voltage, 10, 0);
 
     // temperatures
-    msg->temperatureESC     = scale_float2uint8(telestate->Gyro.temperature, 1, OFFSET_TEMPERATURE);
-    msg->max_temperatureESC = scale_float2uint8(0, 1, OFFSET_TEMPERATURE);
-    msg->temperatureMOT     = scale_float2uint8(telestate->Baro.Temperature, 1, OFFSET_TEMPERATURE);
-    msg->max_temperatureMOT = scale_float2uint8(0, 1, OFFSET_TEMPERATURE);
+    msg->temperatureESC     = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1), 1, OFFSET_TEMPERATURE);
+    msg->max_temperatureESC = scale_float2uint8(telestate->max_temp1, 1, OFFSET_TEMPERATURE);
+    msg->temperatureMOT     = scale_float2uint8(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2), 1, OFFSET_TEMPERATURE);
+    msg->max_temperatureMOT = scale_float2uint8(telestate->max_temp2, 1, OFFSET_TEMPERATURE);
+
+    msg->rpm = scale_float2uword(get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_RPM), 1, 0);
 
     msg->checksum = calc_checksum((uint8_t *)msg, sizeof(*msg));
     return sizeof(*msg);
@@ -728,7 +743,6 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
     uint32_t battSensorCapacity;
     HomeLocationData home;
-
     HomeLocationSetOptions homeSetFlash;
     GPSSettingsData gpsSettings;
     uint8_t adcRouting[HWSETTINGS_ADCROUTING_NUMELEM];
@@ -954,6 +968,9 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsWarningGet(&alarmWarning);
             HoTTBridgeSettingsLimitGet(&alarmLimits);
         }
+        if (FlightBatterySettingsHandle() != NULL) {
+            FlightBatterySettingsCapacityGet(&battSensorCapacity);
+        }
 
         bool edit_minvoltage = (edit_mode && (current_line == 2));
         bool edit_maxcurrent = (edit_mode && (current_line == 3));
@@ -995,6 +1012,9 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             // 100mAh to 30000mAh
             alarmLimits.MaxUsedCapacity = (float)(get_new_value((uint16_t)alarmLimits.MaxUsedCapacity, value_change, step, 100, 30000));
             HoTTBridgeSettingsLimitSet(&alarmLimits);
+            // apply MaxUsedCapacity as main battery capacity
+            battSensorCapacity = (uint32_t)alarmLimits.MaxUsedCapacity;
+            FlightBatterySettingsCapacitySet(&battSensorCapacity);
         }
 
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MinVoltage warn [%1s] ", ((alarmWarning.MinPowerVoltage == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
@@ -1408,6 +1428,75 @@ uint8_t enable_disable_sensor(uint8_t value)
     return value;
 }
 
+/**
+ * get value from redirected sensor
+ */
+float get_redirect_sensor_value(uint8_t hott_sensor)
+{
+    HoTTBridgeSettingsSensorRedirectData sensorRedirect;
+    HoTTBridgeSettingsSensorRedirectOptions sensor = HOTTBRIDGESETTINGS_SENSORREDIRECT_NONE;
+    float value = 0.0f;
+
+    if (HoTTBridgeSettingsHandle() != NULL) {
+        HoTTBridgeSettingsSensorRedirectGet(&sensorRedirect);
+    }
+
+    switch (hott_sensor) {
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_SPEED:
+        sensor = sensorRedirect.Speed;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY1:
+        sensor = sensorRedirect.Battery1;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY2:
+        sensor = sensorRedirect.Battery2;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1:
+        sensor = sensorRedirect.Temp1;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2:
+        sensor = sensorRedirect.Temp2;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_PRESSURE:
+        sensor = sensorRedirect.Pressure;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_RPM:
+        sensor = sensorRedirect.Rpm;
+        break;
+    }
+
+    switch (sensor) {
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_GPSSPEED:
+        value = telestate->GPS.Groundspeed;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_AIRSPEED:
+        value = telestate->Airspeed.TrueAirspeed;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTVOLTAGE:
+        value = telestate->Battery.Voltage;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_GYROTEMPERATURE:
+        value = telestate->Gyro.temperature;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_BAROTEMPERATURE:
+        value = telestate->Baro.Temperature;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMPERATURE1:
+        value = telestate->Temp.Temperature1;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMPERATURE2:
+        value = telestate->Temp.Temperature2;
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_GFORCE:
+        value = fabs(telestate->current_G);
+        break;
+    case HOTTBRIDGESETTINGS_SENSORREDIRECT_NONE:
+        value = 0.0f;
+    }
+
+    return value;
+}
+
 
 /**
  * get new ADCPin for edited field
@@ -1466,10 +1555,13 @@ void store_settings(uint8_t page, uint8_t current_line)
     case HOTTTEXT_PAGE_VARIOWARNINGS:
     case HOTTTEXT_PAGE_VARIOLIMITS:
     case HOTTTEXT_PAGE_GPS:
+        UAVObjSave(HoTTBridgeSettingsHandle(), 0);
+        break;
     case HOTTTEXT_PAGE_GENERAL:
     case HOTTTEXT_PAGE_ELECTRIC:
     case HOTTTEXT_PAGE_ESC:
         UAVObjSave(HoTTBridgeSettingsHandle(), 0);
+        UAVObjSave(FlightBatterySettingsHandle(), 0);
         break;
     case HOTTTEXT_PAGE_GPSCONFIG:
         UAVObjSave(GPSSettingsHandle(), 0);
@@ -1545,6 +1637,9 @@ void update_telemetrydata()
     }
     if (VelocityStateHandle() != NULL) {
         VelocityStateGet(&telestate->Velocity);
+    }
+    if (TemperatureStateHandle() != NULL) {
+        TemperatureStateGet(&telestate->Temp);
     }
 
     // Make vario less sensitive in +/-VarioSensitivity range
@@ -1625,6 +1720,19 @@ void update_telemetrydata()
         }
         if (telestate->min_G > telestate->current_G) {
             telestate->min_G = telestate->current_G;
+        }
+
+        // temperatures and voltage
+        float temp1 = get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1);
+        float temp2 = get_redirect_sensor_value(HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2);
+        if (telestate->max_temp1 < temp1) {
+            telestate->max_temp1 = temp1;
+        }
+        if (telestate->max_temp2 < temp2) {
+            telestate->max_temp2 = temp2;
+        }
+        if (telestate->min_voltage > telestate->Battery.Voltage) {
+            telestate->min_voltage = telestate->Battery.Voltage;
         }
     }
 

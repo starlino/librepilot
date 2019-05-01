@@ -203,6 +203,7 @@ struct telemetrydata {
     PositionStateData      Position;
     SystemAlarmsData       SysAlarms;
     VelocityStateData      Velocity;
+    TemperatureStateData   Temp;
     int16_t climbratebuffer[climbratesize];
     uint8_t climbrate_pointer;
     float   altitude;
@@ -219,6 +220,9 @@ struct telemetrydata {
     float   current_G;  // G force
     float   max_G;
     float   min_G;
+    float   min_voltage;
+    float   max_temp1;
+    float   max_temp2;
     uint8_t last_armed;
     char    statusline[statussize];
 };
@@ -348,9 +352,9 @@ struct hott_gam_message {
     uint8_t cell4;
     uint8_t cell5;
     uint8_t cell6;
-    uword_t batt1_voltage; // battery sensor 1 in 0.1V steps, 50 == 5.5V
-    uword_t batt2_voltage; // battery sensor 2 voltage
-    uint8_t temperature1; // temperature 1 in °C, offset of 20, 20 == 0°C
+    uword_t batt1_voltage; // battery sensor 1 in 0.1V steps, 50 == 5.5V, max 99.0V
+    uword_t batt2_voltage; // battery sensor 2 voltage,
+    uint8_t temperature1; // temperature 1 in °C, offset of 20, 20 == 0°C, max 200°C
     uint8_t temperature2; // temperature 2
     uint8_t fuel_procent; // fuel capacity in %, values from 0..100
     uword_t fuel_ml; // fuel capacity in ml, values from 0..65535
@@ -361,12 +365,12 @@ struct hott_gam_message {
     uword_t current; // current in 0.1A steps
     uword_t voltage; // main power voltage in 0.1V steps
     uword_t capacity; // used battery capacity in 10mAh steps
-    uword_t speed; // speed in km/h
+    uword_t speed; // speed in km/h (not used ?)
     uint8_t min_cell_volt; // lowest cell voltage in 20mV steps. 124 == 2.48V
     uint8_t min_cell_volt_num; // number of the cell with the lowest voltage
     uword_t rpm2; // rpm2 in 10 rpm steps, 300 == 3000rpm
     uint8_t g_error_number; // general error number (Voice error == 12)
-    uint8_t pressure; // pressure up to 15bar, 0.1bar steps
+    uint8_t pressure; // pressure up to 25bar, 0.1bar steps
     uint8_t version; // version number
     uint8_t stop; // stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed
@@ -394,10 +398,10 @@ struct hott_eam_message {
     uint8_t cell5_H;
     uint8_t cell6_H;
     uint8_t cell7_H;
-    uword_t batt1_voltage; // battery sensor 1 voltage, in steps of 0.02V
-    uword_t batt2_voltage; // battery sensor 2 voltage, in steps of 0.02V
-    uint8_t temperature1; // temperature sensor 1. 20 = 0 degrees
-    uint8_t temperature2; // temperature sensor 2. 20 = 0 degrees
+    uword_t batt1_voltage; // battery sensor 1 voltage, in steps of 0.02V max 99.0V
+    uword_t batt2_voltage; // battery sensor 2 voltage, in steps of 0.02V max 99.0V
+    uint8_t temperature1; // temperature sensor 1. 20 = 0 degrees, max 200°C
+    uint8_t temperature2; // temperature sensor 2. 20 = 0 degrees, max 200°C
     uword_t altitude; // altitude (meters). 500 = 0 meters
     uword_t current; // current (A) in steps of 0.1A
     uword_t voltage; // main power voltage in steps of 0.1V
@@ -407,7 +411,7 @@ struct hott_eam_message {
     uword_t rpm; // rpm in steps of 10 rpm
     uint8_t electric_min; // estaminated flight time in minutes.
     uint8_t electric_sec; // estaminated flight time in seconds.
-    uword_t speed; // speed in km/h in steps of 1 km/h
+    uword_t speed; // speed in km/h in steps of 1 km/h (not used ?)
     uint8_t stop; // Stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed.
 };

@@ -73,6 +73,9 @@
 			<elementname>MaxServoDifference</elementname>
 		</elementnames>
 	</field>
+        <field name="SensorRedirect" units="" type="enum" elementnames="Speed,Battery1,Battery2,Temp1,Temp2,Pressure,Rpm" 
+                options="None,GpsSpeed,AirSpeed,BattVoltage,GyroTemperature,BaroTemperature,Temperature1,Temperature2,Gforce" 
+                defaultvalue="GpsSpeed,BattVoltage,None,GyroTemperature,BaroTemperature,Gforce,None"/>
         <field name="VarioSensitivity" units="cm/s" type="uint8" elements="1" defaultvalue="10"/>
         <access gcs="readwrite" flight="readwrite"/>
         <telemetrygcs acked="true" updatemode="onchange" period="0"/>
