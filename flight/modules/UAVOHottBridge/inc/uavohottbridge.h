@@ -237,7 +237,8 @@ static const char *const hottTextPageTitle[] = {
     "------GPS PAGE-------",
     "--GENERAL AIR PAGE---",
     "--ELECTRIC AIR PAGE--",
-    "------ESC PAGE-------"
+    "------ESC PAGE-------",
+    "--SENSORREDIR PAGE---"
 };
 
 typedef enum {
@@ -246,13 +247,14 @@ typedef enum {
     HOTTTEXT_PAGE_GPSCONFIG     = 2,
     HOTTTEXT_PAGE_VARIOWARNINGS = 3,
     HOTTTEXT_PAGE_VARIOLIMITS   = 4,
-    HOTTTEXT_PAGE_GPS      = 5,
-    HOTTTEXT_PAGE_GENERAL  = 6,
-    HOTTTEXT_PAGE_ELECTRIC = 7,
-    HOTTTEXT_PAGE_ESC      = 8,
+    HOTTTEXT_PAGE_GPS         = 5,
+    HOTTTEXT_PAGE_GENERAL     = 6,
+    HOTTTEXT_PAGE_ELECTRIC    = 7,
+    HOTTTEXT_PAGE_ESC         = 8,
+    HOTTTEXT_PAGE_SENSORREDIR = 9,
 } hottTextPageElem;
 
-#define HOTTTEXT_PAGE_NUMELEM 9
+#define HOTTTEXT_PAGE_NUMELEM 10
 
 typedef enum {
     HOTTTEXT_EDITSTATUS_STEP1   = 0,
@@ -273,6 +275,18 @@ static const char *const hottTextADCpinNames[] = {
     "ADC5",
     "ADC6",
     "ADC7"
+};
+
+static const char *const hottTextSensorRedirectNames[] = {
+    "  NONE  ",
+    "GPSSPEED",
+    "AIRSPEED",
+    "BATTVOLT",
+    "GYROTEMP",
+    "BAROTEMP",
+    " TEMP1  ",
+    " TEMP2  ",
+    " GFORCE "
 };
 
 // VARIO Module message structure

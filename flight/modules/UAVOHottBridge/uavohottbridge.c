@@ -229,9 +229,9 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             int8_t value_change   = 0;
             static uint8_t step_change = 0;
 
-            // define allowed edited lines for Main, Main Config, GPS config, VarioWarnings, VarioLimits, GPS, General, Electric and Esc pages
-            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2 };
-            uint8_t max_line[]  = { 6, 7, 5, 8, 8, 7, 7, 7, 7 };
+            // define allowed edited lines for Main, Main Config, GPS config, VarioWarnings, VarioLimits, GPS, General, Electric, Esc pages and Sensor redirect page
+            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
+            uint8_t max_line[]  = { 6, 7, 5, 8, 8, 7, 7, 7, 7, 8 };
 
             static uint8_t page = HOTTTEXT_PAGE_MAIN;
             static uint8_t edit_status  = HOTTTEXT_EDITSTATUS_DONE;
@@ -746,6 +746,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     HomeLocationSetOptions homeSetFlash;
     GPSSettingsData gpsSettings;
     uint8_t adcRouting[HWSETTINGS_ADCROUTING_NUMELEM];
+    uint8_t sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_NUMELEM];
 
     uint8_t edit_status = step;
 
@@ -1036,6 +1037,35 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         }
         if (edit_maxusedcapacity_value) {
             reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - step), 20 - step);
+        }
+        break;
+    case HOTTTEXT_PAGE_SENSORREDIR:
+        if (HoTTBridgeSettingsHandle() != NULL) {
+            HoTTBridgeSettingsSensorRedirectArrayGet(sensorRedirect);
+        }
+
+        if (edit_mode) {
+            uint8_t sensor_data = current_line - 2;
+            if ((value_change > 0) && (sensorRedirect[sensor_data] < HOTTBRIDGESETTINGS_SENSORREDIRECT_GFORCE)) {
+                sensorRedirect[sensor_data]++;
+            } else if ((value_change < 0) && (sensorRedirect[sensor_data] > HOTTBRIDGESETTINGS_SENSORREDIRECT_NONE)) {
+                sensorRedirect[sensor_data]--;
+            }
+            HoTTBridgeSettingsSensorRedirectArraySet(sensorRedirect);
+        }
+
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Speed      %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_SPEED]]); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Battery1   %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY1]]); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Battery2   %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_BATTERY2]]); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Temp1      %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP1]]); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Temp2      %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_TEMP2]]); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Pressure   %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_PRESSURE]]); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " RPM        %s ", hottTextSensorRedirectNames[sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_RPM]]); // line 8
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        if (edit_mode) {
+            reverse_pixels((char *)msg->text[current_line - 1], 12, 20);
         }
         break;
     case HOTTTEXT_PAGE_GPSCONFIG: // GPS config page
@@ -1348,12 +1378,24 @@ uint8_t get_page(uint8_t page, bool next)
                 break;
             }
         case HOTTTEXT_PAGE_ESC:
+            if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_SENSORREDIR;
+                break;
+            }
+        case HOTTTEXT_PAGE_SENSORREDIR:
             break;
         default:
             page = HOTTTEXT_PAGE_MAIN;
         }
     } else {
         switch (page) {
+        case HOTTTEXT_PAGE_SENSORREDIR:
+            if (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
+                page = HOTTTEXT_PAGE_ESC;
+                break;
+            }
         case HOTTTEXT_PAGE_ESC:
             if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ELECTRIC;
@@ -1555,6 +1597,7 @@ void store_settings(uint8_t page, uint8_t current_line)
     case HOTTTEXT_PAGE_VARIOWARNINGS:
     case HOTTTEXT_PAGE_VARIOLIMITS:
     case HOTTTEXT_PAGE_GPS:
+    case HOTTTEXT_PAGE_SENSORREDIR:
         UAVObjSave(HoTTBridgeSettingsHandle(), 0);
         break;
     case HOTTTEXT_PAGE_GENERAL:
