@@ -232,6 +232,7 @@ static const char *const hottTextPageTitle[] = {
     "**LIBREPILOT HoTT****",
     "**LIBREPILOT CONFIG**",
     "*****GPS CONFIG******",
+    "***BATTERY CONFIG****",
     "---VARIO WARNINGS----",
     "----VARIO LIMITS-----",
     "------GPS PAGE-------",
@@ -245,16 +246,17 @@ typedef enum {
     HOTTTEXT_PAGE_MAIN = 0,
     HOTTTEXT_PAGE_MAINCONFIG    = 1,
     HOTTTEXT_PAGE_GPSCONFIG     = 2,
-    HOTTTEXT_PAGE_VARIOWARNINGS = 3,
-    HOTTTEXT_PAGE_VARIOLIMITS   = 4,
-    HOTTTEXT_PAGE_GPS         = 5,
-    HOTTTEXT_PAGE_GENERAL     = 6,
-    HOTTTEXT_PAGE_ELECTRIC    = 7,
-    HOTTTEXT_PAGE_ESC         = 8,
-    HOTTTEXT_PAGE_SENSORREDIR = 9,
+    HOTTTEXT_PAGE_BATTERYCONFIG = 3,
+    HOTTTEXT_PAGE_VARIOWARNINGS = 4,
+    HOTTTEXT_PAGE_VARIOLIMITS   = 5,
+    HOTTTEXT_PAGE_GPS         = 6,
+    HOTTTEXT_PAGE_GENERAL     = 7,
+    HOTTTEXT_PAGE_ELECTRIC    = 8,
+    HOTTTEXT_PAGE_ESC         = 9,
+    HOTTTEXT_PAGE_SENSORREDIR = 10,
 } hottTextPageElem;
 
-#define HOTTTEXT_PAGE_NUMELEM 10
+#define HOTTTEXT_PAGE_NUMELEM 11
 
 typedef enum {
     HOTTTEXT_EDITSTATUS_STEP1   = 0,

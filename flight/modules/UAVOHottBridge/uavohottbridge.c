@@ -57,6 +57,7 @@
 #include "flightbatterysettings.h"
 #include "hwsettings.h"
 #include "revosettings.h"
+#include "attitudesettings.h"
 #include "gpssettings.h"
 #include "homelocation.h"
 #include "objectpersistence.h"
@@ -236,9 +237,9 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             int8_t value_change   = 0;
             static uint8_t step_change = 0;
 
-            // define allowed edited lines for Main, Main Config, GPS config, VarioWarnings, VarioLimits, GPS, General, Electric, Esc pages and Sensor redirect page
-            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
-            uint8_t max_line[]  = { 6, 7, 5, 8, 8, 7, 7, 7, 7, 8 };
+            // define allowed edited lines for Main, Main Config, GPS config, Battery config, VarioWarnings, VarioLimits, GPS, General, Electric, Esc pages and Sensor redirect page
+            uint8_t min_line[]  = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
+            uint8_t max_line[]  = { 6, 5, 5, 6, 8, 8, 7, 7, 7, 7, 8 };
 
             static uint8_t page = HOTTTEXT_PAGE_MAIN;
             static uint8_t edit_status  = HOTTTEXT_EDITSTATUS_DONE;
@@ -747,6 +748,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     HoTTBridgeSettingsWarningData alarmWarning;
     uint8_t varioSensitivity;
     RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
+    AttitudeSettingsBoardRotationData boardRotation;
     FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
     uint32_t battSensorCapacity;
     HomeLocationSetOptions homeSet;
@@ -1142,10 +1144,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             reverse_pixels((char *)msg->text[current_line - 1], 18, 20);
         }
         break;
-    case HOTTTEXT_PAGE_MAINCONFIG:
-        if (RevoSettingsHandle() != NULL) {
-            RevoSettingsFusionAlgorithmGet(&revoFusionAlgo);
-        }
+    case HOTTTEXT_PAGE_BATTERYCONFIG:
         if (FlightBatterySettingsHandle() != NULL) {
             FlightBatterySettingsSensorCalibrationsGet(&battSensorCalibration);
         }
@@ -1153,26 +1152,18 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HwSettingsADCRoutingArrayGet(adcRouting);
         }
         if (edit_mode && (current_line == 2)) {
-            if ((value_change > 0) && (revoFusionAlgo < REVOSETTINGS_FUSIONALGORITHM_ACRONOSENSORS)) {
-                revoFusionAlgo++;
-            } else if ((value_change < 0) && (revoFusionAlgo > REVOSETTINGS_FUSIONALGORITHM_NONE)) {
-                revoFusionAlgo--;
-            }
-            RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
-        }
-        if (edit_mode && (current_line == 3)) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
             // 1.00 to 30.00
             battSensorCalibration.VoltageFactor = (float)(get_new_value((uint16_t)roundf(battSensorCalibration.VoltageFactor * 100), value_change, step, 100, 3000) / 100.0f);
             FlightBatterySettingsSensorCalibrationsSet(&battSensorCalibration);
         }
-        if (edit_mode && (current_line == 4)) {
+        if (edit_mode && (current_line == 3)) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP1K) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
             // 1.00 to 30.00
             battSensorCalibration.CurrentFactor = (float)(get_new_value((uint16_t)roundf(battSensorCalibration.CurrentFactor * 100), value_change, step, 100, 3000) / 100.0f);
             FlightBatterySettingsSensorCalibrationsSet(&battSensorCalibration);
         }
-        if (edit_mode && (current_line == 5)) {
+        if (edit_mode && (current_line == 4)) {
             step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP100 : step;
             // -9.00 to 9.00
             battSensorCalibration.CurrentZero = (float)(get_new_value((int16_t)roundf(battSensorCalibration.CurrentZero * 100), value_change, step, -900, 900) / 100.0f);
@@ -1192,7 +1183,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             }
         }
 
-        if (edit_mode && (current_line == 6)) {
+        if (edit_mode && (current_line == 5)) {
             newADCPin = get_newADCPin_value(adcRouting, voltageADCPin, value_change);
             adcRouting[voltageADCPin] = HWSETTINGS_ADCROUTING_DISABLED;
             if (newADCPin > ADC_XX_PIN_NOTFOUND) {
@@ -1200,7 +1191,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             }
             HwSettingsADCRoutingArraySet(adcRouting);
         }
-        if (edit_mode && (current_line == 7)) {
+        if (edit_mode && (current_line == 6)) {
             newADCPin = get_newADCPin_value(adcRouting, currentADCPin, value_change);
             adcRouting[currentADCPin] = HWSETTINGS_ADCROUTING_DISABLED;
             if (newADCPin > ADC_XX_PIN_NOTFOUND) {
@@ -1208,7 +1199,40 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             }
             HwSettingsADCRoutingArraySet(adcRouting);
         }
-
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Volt. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.VoltageFactor), (uint16_t)(battSensorCalibration.VoltageFactor * 100) % 100); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Curr. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.CurrentFactor), (uint16_t)(battSensorCalibration.CurrentFactor * 100) % 100); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Curr. Zero    %s%d.%02d ", (battSensorCalibration.CurrentZero < 0 ? "-" : " "), (uint16_t)(fabsf(battSensorCalibration.CurrentZero)), (uint16_t)(fabsf(battSensorCalibration.CurrentZero * 100)) % 100); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " VoltagePin     %s ", hottTextADCpinNames[voltageADCPin + 1]); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " CurrentPin     %s ", hottTextADCpinNames[currentADCPin + 1]); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d.%02dV %3d.%02dA      ",
+                 (uint16_t)(telestate->Battery.Voltage), (uint16_t)(telestate->Battery.Voltage * 100) % 100,
+                 (uint16_t)(telestate->Battery.Current), (uint16_t)(telestate->Battery.Current * 100) % 100); // line 8
+        if (current_line > 1) {
+            msg->text[current_line - 1][0] = '>';
+        }
+        if (edit_mode && ((current_line == 2) || (current_line == 3) || (current_line == 4))) {
+            reverse_pixels((char *)msg->text[current_line - 1], 14 + (5 - (step > 1 ? step + 1 : step)), 20 - (step > 1 ? step + 1 : step));
+        }
+        if (edit_mode && ((current_line == 5) || (current_line == 6))) {
+            reverse_pixels((char *)msg->text[current_line - 1], 16, 20);
+        }
+        break;
+    case HOTTTEXT_PAGE_MAINCONFIG:
+        if (RevoSettingsHandle() != NULL) {
+            RevoSettingsFusionAlgorithmGet(&revoFusionAlgo);
+        }
+        if (AttitudeSettingsHandle() != NULL) {
+            AttitudeSettingsBoardRotationGet(&boardRotation);
+        }
+        if (edit_mode && (current_line == 2)) {
+            if ((value_change > 0) && (revoFusionAlgo < REVOSETTINGS_FUSIONALGORITHM_ACRONOSENSORS)) {
+                revoFusionAlgo++;
+            } else if ((value_change < 0) && (revoFusionAlgo > REVOSETTINGS_FUSIONALGORITHM_NONE)) {
+                revoFusionAlgo--;
+            }
+            RevoSettingsFusionAlgorithmSet(&revoFusionAlgo);
+        }
         char *txt_fusionalgo = "";
         // check current algo status
         switch (revoFusionAlgo) {
@@ -1245,16 +1269,32 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         default:
             txt_fusionalgo = "!UNDEFINED!";
         }
+        if (edit_mode && (current_line == 3)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
+            // -180 to 180
+            boardRotation.Roll = (float)(get_new_value((int16_t)(boardRotation.Roll * 10), value_change, step, -1800, 1800) / 10.0f);
+            AttitudeSettingsBoardRotationSet(&boardRotation);
+        }
+        if (edit_mode && (current_line == 4)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
+            // -180 to 180
+            boardRotation.Pitch = (float)(get_new_value((int16_t)(boardRotation.Pitch * 10), value_change, step, -1800, 1800) / 10.0f);
+            AttitudeSettingsBoardRotationSet(&boardRotation);
+        }
+        if (edit_mode && (current_line == 5)) {
+            step = (step > HOTTTEXT_EDITSTATUS_STEP100) ? HOTTTEXT_EDITSTATUS_STEP1K : step;
+            // -180 to 180
+            boardRotation.Yaw = (float)(get_new_value((int16_t)(boardRotation.Yaw * 10), value_change, step, -1800, 1800) / 10.0f);
+            AttitudeSettingsBoardRotationSet(&boardRotation);
+        }
 
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " EstAlgo %s ", txt_fusionalgo); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Volt. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.VoltageFactor), (uint16_t)(battSensorCalibration.VoltageFactor * 100) % 100); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Curr. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.CurrentFactor), (uint16_t)(battSensorCalibration.CurrentFactor * 100) % 100); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Curr. Zero    %s%d.%02d ", (battSensorCalibration.CurrentZero < 0 ? "-" : " "), (uint16_t)(fabsf(battSensorCalibration.CurrentZero)), (uint16_t)(fabsf(battSensorCalibration.CurrentZero * 100)) % 100); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " VoltagePin     %s ", hottTextADCpinNames[voltageADCPin + 1]); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " CurrentPin     %s ", hottTextADCpinNames[currentADCPin + 1]); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d.%02dV %3d.%02dA      ",
-                 (uint16_t)(telestate->Battery.Voltage), (uint16_t)(telestate->Battery.Voltage * 100) % 100,
-                 (uint16_t)(telestate->Battery.Current), (uint16_t)(telestate->Battery.Current * 100) % 100); // line 8
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Roll rot.    %4d.%d ", (int16_t)(boardRotation.Roll), (int16_t)fabs(boardRotation.Roll * 10) % 10); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Pitch rot.   %4d.%d ", (int16_t)(boardRotation.Pitch), (int16_t)fabs(boardRotation.Pitch * 10) % 10); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Yaw rot.     %4d.%d ", (int16_t)(boardRotation.Yaw), (int16_t)fabs(boardRotation.Yaw * 10) % 10); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1262,10 +1302,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             reverse_pixels((char *)msg->text[current_line - 1], 9, 20);
         }
         if (edit_mode && ((current_line == 3) || (current_line == 4) || (current_line == 5))) {
-            reverse_pixels((char *)msg->text[current_line - 1], 14 + (5 - (step > 1 ? step + 1 : step)), 20 - (step > 1 ? step + 1 : step));
-        }
-        if (edit_mode && ((current_line == 6) || (current_line == 7))) {
-            reverse_pixels((char *)msg->text[current_line - 1], 16, 20);
+            reverse_pixels((char *)msg->text[current_line - 1], 15 + (4 - (step > 0 ? step + 1 : step)), 20 - (step > 0 ? step + 1 : step));
         }
         break;
     default:
@@ -1347,6 +1384,13 @@ uint8_t get_page(uint8_t page, bool next)
                 break;
             }
         case HOTTTEXT_PAGE_GPSCONFIG:
+            if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_BATTERYCONFIG;
+                break;
+            }
+        case HOTTTEXT_PAGE_BATTERYCONFIG:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
@@ -1429,6 +1473,13 @@ uint8_t get_page(uint8_t page, bool next)
                 break;
             }
         case HOTTTEXT_PAGE_VARIOWARNINGS:
+            if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
+                (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED)) {
+                page = HOTTTEXT_PAGE_BATTERYCONFIG;
+                break;
+            }
+        case HOTTTEXT_PAGE_BATTERYCONFIG:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
@@ -1542,7 +1593,6 @@ float get_redirect_sensor_value(uint8_t hott_sensor)
     return value;
 }
 
-
 /**
  * get new ADCPin for edited field
  */
@@ -1609,6 +1659,18 @@ void store_settings(uint8_t page, uint8_t current_line)
         UAVObjSave(HoTTBridgeSettingsHandle(), 0);
         UAVObjSave(FlightBatterySettingsHandle(), 0);
         break;
+    case HOTTTEXT_PAGE_BATTERYCONFIG:
+        switch (current_line) {
+        case 2:
+        case 3:
+        case 4:
+            UAVObjSave(FlightBatterySettingsHandle(), 0);
+            break;
+        case 5:
+        case 6:
+            UAVObjSave(HwSettingsHandle(), 0);
+            break;
+        }
     case HOTTTEXT_PAGE_GPSCONFIG:
         UAVObjSave(GPSSettingsHandle(), 0);
         break;
@@ -1620,11 +1682,7 @@ void store_settings(uint8_t page, uint8_t current_line)
         case 3:
         case 4:
         case 5:
-            UAVObjSave(FlightBatterySettingsHandle(), 0);
-            break;
-        case 6:
-        case 7:
-            UAVObjSave(HwSettingsHandle(), 0);
+            UAVObjSave(AttitudeSettingsHandle(), 0);
             break;
         }
     }
