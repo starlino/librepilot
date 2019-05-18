@@ -82,6 +82,7 @@ static bool module_enabled = false;
 static bool module_enabled;
 static struct telemetrydata *telestate;
 static HoTTBridgeStatusData status;
+static HomeLocationSetOptions homeSetFlash;
 
 // Private functions
 static void uavoHoTTBridgeTask(void *parameters);
@@ -181,6 +182,12 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
     uint32_t idledelay = IDLE_TIME;
     // data delay between transmitted bytes
     uint32_t datadelay = DATA_TIME;
+
+    // Get stored homeSet status at start
+    if (HomeLocationHandle() != NULL) {
+        UAVObjLoad(HomeLocationHandle(), 0); // load from flash
+        HomeLocationSetGet(&homeSetFlash);
+    }
 
     // work on hott telemetry. endless loop.
     while (1) {
@@ -742,8 +749,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
     RevoSettingsFusionAlgorithmOptions revoFusionAlgo;
     FlightBatterySettingsSensorCalibrationsData battSensorCalibration;
     uint32_t battSensorCapacity;
-    HomeLocationData home;
-    HomeLocationSetOptions homeSetFlash;
+    HomeLocationSetOptions homeSet;
     GPSSettingsData gpsSettings;
     uint8_t adcRouting[HWSETTINGS_ADCROUTING_NUMELEM];
     uint8_t sensorRedirect[HOTTBRIDGESETTINGS_SENSORREDIRECT_NUMELEM];
@@ -1073,10 +1079,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             GPSSettingsGet(&gpsSettings);
         }
         if (HomeLocationHandle() != NULL) {
-            HomeLocationGet(&home);
-            UAVObjLoad(HomeLocationHandle(), 0); // load from flash
-            HomeLocationSetGet(&homeSetFlash);
-            HomeLocationSet(&home); // Restore previous home location from RAM
+            HomeLocationSetGet(&homeSet);
         }
 
         bool edit_savehome      = (edit_mode && (current_line == 2));
@@ -1100,7 +1103,7 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             GPSSettingsSet(&gpsSettings);
         }
 
-        char *home_set_status = (homeSetFlash == HOMELOCATION_SET_FALSE) ? ((home.Set == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
+        char *home_set_status = (homeSetFlash == HOMELOCATION_SET_FALSE) ? ((homeSet == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
 
         snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s ", home_set_status); // line 2
         snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min satellites    %d ", gpsSettings.MinSatellites); // line 3
@@ -1117,9 +1120,9 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         }
 
         if (edit_savehome) {
-            if (home.Set == HOMELOCATION_SET_TRUE) {
-                home.Set = HOMELOCATION_SET_FALSE;
-                HomeLocationSet(&home);
+            if (homeSet == HOMELOCATION_SET_TRUE) {
+                homeSet = HOMELOCATION_SET_FALSE;
+                HomeLocationSetSet(&homeSet);
             }
             // refresh fixed homelocation if any
             if (homeSetFlash == HOMELOCATION_SET_TRUE) {
