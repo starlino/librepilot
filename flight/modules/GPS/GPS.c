@@ -413,6 +413,16 @@ static void gpsTask(__attribute__((unused)) void *parameters)
                 GPSPositionSensorStatusOptions status = GPSPOSITIONSENSOR_STATUS_NOGPS;
                 GPSPositionSensorStatusSet(&status);
                 AlarmsSet(SYSTEMALARMS_ALARM_GPS, SYSTEMALARMS_ALARM_ERROR);
+
+                if (res == PARSER_ERROR) {
+                    DEBUG_PRINTF(3, "NoGPS-ParserError\r");
+                }
+                if ((timeNowMs - timeOfLastUpdateMs) >= GPS_TIMEOUT_MS) {
+                    DEBUG_PRINTF(3, "NoGPS-TimeOUT:%d\r", (timeNowMs - timeOfLastUpdateMs));
+                }
+                if (gpsSettings.DataProtocol == GPSSETTINGS_DATAPROTOCOL_UBX && gpspositionsensor.AutoConfigStatus == GPSPOSITIONSENSOR_AUTOCONFIGSTATUS_ERROR) {
+                    DEBUG_PRINTF(3, "NoGPS-AutoCfgError\r");
+                }
             }
             // if we parsed at least one packet successfully
             // we aren't offline, but we still may not have a good enough fix to fly
@@ -554,10 +564,13 @@ void gps_set_fc_baud_from_arg(uint8_t baud)
         // don't bother doing the baud change if it is actually the same
         // might drop less data
         if (previous_baud != baud) {
+            DEBUG_PRINTF(3, "SetBaud:%d - %d", baud, hwsettings_gpsspeed_enum_to_baud(baud));
             previous_baud = baud;
             // Set Revo port hwsettings_baud
             PIOS_COM_ChangeBaud(PIOS_COM_GPS, hwsettings_gpsspeed_enum_to_baud(baud));
             GPSPositionSensorBaudRateSet(&baud);
+        } else {
+            DEBUG_PRINTF(3, "SetBaud:%d - NoChange\r", baud);
         }
     }
     --mutex;
