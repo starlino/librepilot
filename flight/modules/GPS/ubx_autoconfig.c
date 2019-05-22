@@ -169,7 +169,8 @@ static volatile bool current_step_touched = false;
 // both the pointer and what it points to are volatile.  Yuk.
 static volatile status_t *volatile status = 0;
 static uint8_t hwsettings_baud;
-static uint8_t baud_to_try_index = 255;
+static uint8_t baud_to_try   = 0;
+static uint8_t new_gps_speed = 255;
 
 // functions
 
@@ -238,14 +239,10 @@ void gps_ubx_reset_sensor_type()
     // is this needed?
     // what happens if two tasks / threads try to do an XyzSet() at the same time?
     if (__sync_fetch_and_add(&mutex, 1) == 0) {
-        ubxHwVersion       = -1;
-        baud_to_try_index -= 1; // undo postincrement and start with the one that was most recently successful
-        ubxSensorType      = GPSPOSITIONSENSOR_SENSORTYPE_UNKNOWN;
+        ubxHwVersion  = -1;
+        baud_to_try   = new_gps_speed;
+        ubxSensorType = GPSPOSITIONSENSOR_SENSORTYPE_UNKNOWN;
         GPSPositionSensorSensorTypeSet(&ubxSensorType);
-        // make the sensor type / autobaud code time out immediately to send the request immediately
-        if (status) {
-            status->lastStepTimestampRaw += 0x8000000UL;
-        }
     }
     --mutex;
 }
@@ -283,6 +280,9 @@ static void config_gps_baud(uint16_t *bytes_to_send)
     // Ask GPS to change it's speed
     status->working_packet.message.payload.cfg_prt.baudRate     = hwsettings_gpsspeed_enum_to_baud(hwsettings_baud);
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_PRT, sizeof(ubx_cfg_prt_t));
+
+    // GPS will be found later at this new_gps_speed
+    new_gps_speed  = hwsettings_baud;
 }
 
 
@@ -569,34 +569,20 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 
         // if AutoBaud or higher, do AutoBaud
         if (status->currentSettings.UbxAutoConfig >= GPSSETTINGS_UBXAUTOCONFIG_AUTOBAUD) {
-            uint8_t baud_to_try;
-            static uint8_t baud_array[] = {
-                HWSETTINGS_GPSSPEED_57600,
-                HWSETTINGS_GPSSPEED_9600,
-                HWSETTINGS_GPSSPEED_115200,
-                HWSETTINGS_GPSSPEED_38400,
-                HWSETTINGS_GPSSPEED_19200,
-                HWSETTINGS_GPSSPEED_230400,
-                HWSETTINGS_GPSSPEED_4800,
-                HWSETTINGS_GPSSPEED_2400
-            };
-
             // first try HwSettings.GPSSpeed and then
             // get the next baud rate to try from the table, but skip over the value of HwSettings.GPSSpeed
-            do {
-                // index is inited to be out of bounds, which is interpreted as "currently defined baud rate" (= HwSettings.GPSSpeed)
-                if (baud_to_try_index >= sizeof(baud_array) / sizeof(baud_array[0])) {
-                    HwSettingsGPSSpeedGet(&hwsettings_baud);
-                    baud_to_try = hwsettings_baud;
-                    baud_to_try_index = 0;
-                    break;
-                } else {
-                    baud_to_try = baud_array[baud_to_try_index++];
-                }
-                // skip HwSettings.GPSSpeed when you run across it in the list
-            } while (baud_to_try == hwsettings_baud);
+            // new_gps_speed is not initialized yet
+            if (new_gps_speed > HWSETTINGS_GPSSPEED_230400) {
+                // try current speed set in HwSettings.GPSSpeed
+                HwSettingsGPSSpeedGet(&hwsettings_baud);
+                baud_to_try   = hwsettings_baud;
+                new_gps_speed = baud_to_try;
+            }
             // set the FC (Revo) baud rate
             gps_set_fc_baud_from_arg(baud_to_try);
+
+            // increase baud_to_try for next try
+            baud_to_try = (baud_to_try < HWSETTINGS_GPSSPEED_230400) ? baud_to_try + 1 : HWSETTINGS_GPSSPEED_2400;
         }
 
         // this code is executed even if ubxautoconfig is disabled
