@@ -382,6 +382,8 @@ uint32_t parse_dji_message(struct DJIPacket *dji, GPSPositionSensorData *gpsPosi
         gpsPosition->HDOP = 99.99f;
         gpsPosition->PDOP = 99.99f;
         gpsPosition->VDOP = 99.99f;
+        // clear out satellite data because DJI doesn't provide it
+        GPSSatellitesSetDefaults(GPSSatellitesHandle(), 0);
         djiInitialized    = true;
     }
 
