@@ -57,7 +57,7 @@
 // timeout for a settings save, in case it has to erase flash?
 #define UBX_SAVE_WAIT_TIME            (1000 * 1000)
 // max retries in case of timeout
-#define UBX_MAX_RETRIES               5
+#define UBX_MAX_RETRIES               10
 // max time for ubx parser to respond to MON_VER
 #define UBX_PARSER_TIMEOUT            (950 * 1000)
 // pause between each unverifiable (no ack/nak) configuration step

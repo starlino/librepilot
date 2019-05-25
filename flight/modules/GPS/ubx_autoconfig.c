@@ -288,11 +288,12 @@ static void config_gps_baud(uint16_t *bytes_to_send)
 }
 
 
-static void config_rate(uint16_t *bytes_to_send)
+static void config_rate(uint16_t *bytes_to_send, bool min_rate)
 {
     memset((uint8_t *)status->working_packet.buffer, 0, sizeof(UBXSentHeader_t) + sizeof(ubx_cfg_rate_t));
     // if rate is less than 1 uses the highest rate for current hardware
-    uint16_t rate = status->currentSettings.navRate > 0 ? status->currentSettings.navRate : 99;
+    // force rate to 1Hz if min_rate = true
+    uint16_t rate = (min_rate) ? 1 : (status->currentSettings.navRate > 0) ? status->currentSettings.navRate : 99;
     if (ubxHwVersion < UBX_HW_VERSION_7 && rate > UBX_MAX_RATE) {
         rate = UBX_MAX_RATE;
     } else if (ubxHwVersion < UBX_HW_VERSION_8 && rate > UBX_MAX_RATE_VER7) {
@@ -436,10 +437,13 @@ static void config_save(uint16_t *bytes_to_send)
 
 static void configure(uint16_t *bytes_to_send)
 {
+    // for low baudrates, force rate to 1Hz
+    // and apply UbxRate from GPS settings for higher baudrates
+    bool min_rate = (new_gps_speed <= HWSETTINGS_GPSSPEED_9600) ? true : false;
+
     switch (status->lastConfigSent) {
     case LAST_CONFIG_SENT_START:
-        // increase message rates to 5 fixes per second
-        config_rate(bytes_to_send);
+        config_rate(bytes_to_send, min_rate);
         break;
 
     case LAST_CONFIG_SENT_START + 1:
@@ -534,8 +538,6 @@ static void setGpsSettings()
 #endif /* if defined(AUTOBAUD_CONFIGURE_STORE_AND_DISABLE) */
 
 
-// 9600 baud and lower are not usable, and are best left at factory default
-// if the user selects 9600
 void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 {
     *bytes_to_send = 0;
@@ -560,7 +562,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         // implying a 1 second send buffer and that it could be over 1 second before a reply is received
         // later uBlox versions dropped this 1 second constraint and drop data when the send buffer is full
         // and that could be even longer than 1 second
-        // send this more quickly and it will get a reply more quickly if a fixed percentage of replies are being dropped
 
         // wait for the normal reply timeout before sending it over and over
         if (PIOS_DELAY_DiffuS(status->lastStepTimestampRaw) < UBX_PARSER_TIMEOUT) {
@@ -682,8 +683,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // GPS was just reset, so GPS is running 9600 baud, and Revo is running whatever baud it was before
     case INIT_STEP_REVO_9600_BAUD:
 #if !defined(ALWAYS_RESET)
-        // if user requests a low baud rate then we just reset and leave it set to NMEA
-        // because low baud and high OP data rate doesn't play nice
         // if user requests that settings be saved, we will reset here too
         // that makes sure that all strange settings are reset to factory default
         // else these strange settings may persist because we don't reset all settings by hand
@@ -744,39 +743,35 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         status->lastConfigSent = LAST_CONFIG_SENT_START;
         // zero the retries for the first "enable sentence"
         status->retryCount     = 0;
-        // skip enabling UBX sentences for low baud rates
-        // low baud rates are not usable, and higher data rates just makes it harder for this code to change the configuration
-        if (hwsettings_baud <= HWSETTINGS_GPSSPEED_9600) {
-            set_current_step_if_untouched(INIT_STEP_SAVE);
-        } else {
-            set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES);
-        }
+        // enable UBX sentences
+        set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES);
         // allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
         break;
 
     case INIT_STEP_ENABLE_SENTENCES:
+    {
+        enable_sentences(bytes_to_send);
+        if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
+            // finished enabling sentences, now configure() needs to start at the beginning
+            status->lastConfigSent = LAST_CONFIG_SENT_START;
+            // zero the retries for the first "configure"
+            status->retryCount     = 0;
+            set_current_step_if_untouched(INIT_STEP_CONFIGURE);
+        } else {
+            set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES_WAIT_ACK);
+            status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
+        }
+        break;
+    }
+
     case INIT_STEP_CONFIGURE:
     {
-        bool step_configure = (status->currentStep == INIT_STEP_CONFIGURE);
-        if (step_configure) {
-            configure(bytes_to_send);
-        } else {
-            enable_sentences(bytes_to_send);
-        }
-
-        // for some branches, allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
+        configure(bytes_to_send);
         if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
-            if (step_configure) {
-                // zero retries for the next state that needs it (INIT_STEP_SAVE)
-                status->retryCount = 0;
-                set_current_step_if_untouched(INIT_STEP_SAVE);
-            } else {
-                // finished enabling sentences, now configure() needs to start at the beginning
-                status->lastConfigSent = LAST_CONFIG_SENT_START;
-                set_current_step_if_untouched(INIT_STEP_CONFIGURE);
-            }
+            status->retryCount = 0;
+            set_current_step_if_untouched(INIT_STEP_SAVE);
         } else {
-            set_current_step_if_untouched(step_configure ? INIT_STEP_CONFIGURE_WAIT_ACK : INIT_STEP_ENABLE_SENTENCES_WAIT_ACK);
+            set_current_step_if_untouched(INIT_STEP_CONFIGURE_WAIT_ACK);
             status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
         }
         break;
