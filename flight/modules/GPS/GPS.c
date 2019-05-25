@@ -97,8 +97,9 @@ void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev);
 // ****************
 // Private constants
 
-// GPS timeout is greater than 1000ms so that a stock GPS configuration can be used without timeout errors
-#define GPS_TIMEOUT_MS             1250
+// GPS timeout is greater than 1000ms so that a stock GPS configuration
+// or 2400bds can be used without timeout errors
+#define GPS_TIMEOUT_MS             1800
 
 // delay from detecting HomeLocation.Set == False before setting new homelocation
 // this prevent that a save with homelocation.Set = false triggered by gps ends saving
