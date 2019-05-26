@@ -127,7 +127,7 @@ void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev);
 // are run often enough.
 // GPS_LOOP_DELAY_MS on the other hand, should be less then 5.55 ms. A value set too high will cause data to be dropped.
 
-#define GPS_LOOP_DELAY_MS        5
+#define GPS_LOOP_DELAY_MS        4
 #define GPS_BLOCK_ON_NO_DATA_MS  20
 
 #ifdef PIOS_GPS_SETS_HOMELOCATION
