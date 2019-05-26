@@ -145,6 +145,10 @@ ubx_cfg_msg_t msg_config_ubx7[] = {
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO,    .rate = 10 },
 };
 
+ubx_cfg_msg_t msg_config_ubx_disable_svinfo[] = {
+    { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO, .rate = 0 },
+};
+
 // private defines
 
 #define LAST_CONFIG_SENT_START     (-1)
@@ -480,7 +484,7 @@ static void configure(uint16_t *bytes_to_send)
 }
 
 
-static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send)
+static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send, bool disable_svinfo)
 {
     int8_t msg = status->lastConfigSent + 1;
     uint8_t msg_count = (ubxHwVersion >= UBX_HW_VERSION_7) ?
@@ -489,10 +493,15 @@ static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send)
                                 &msg_config_ubx7[0] : &msg_config_ubx6[0];
 
     if (msg >= 0 && msg < msg_count) {
-        status->working_packet.message.payload.cfg_msg = msg_config[msg];
+        status->working_packet.message.payload.cfg_msg = (msg == (msg_count - 1) && disable_svinfo) ? msg_config_ubx_disable_svinfo[0] : msg_config[msg];
         *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_MSG, sizeof(ubx_cfg_msg_t));
     } else {
         status->lastConfigSent = LAST_CONFIG_SENT_COMPLETED;
+    }
+
+    // Reset GPSSatellites UAVO
+    if (disable_svinfo && (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) && (GPSSatellitesHandle() != NULL)) {
+        GPSSatellitesSetDefaults(GPSSatellitesHandle(), 0);
     }
 }
 
@@ -750,7 +759,9 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 
     case INIT_STEP_ENABLE_SENTENCES:
     {
-        enable_sentences(bytes_to_send);
+        // for low baudrates, disable SVINFO
+        bool disable_svinfo = (new_gps_speed <= HWSETTINGS_GPSSPEED_9600) ? true : false;
+        enable_sentences(bytes_to_send, disable_svinfo);
         if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
             // finished enabling sentences, now configure() needs to start at the beginning
             status->lastConfigSent = LAST_CONFIG_SENT_START;
