@@ -569,6 +569,7 @@ void gps_set_fc_baud_from_arg(uint8_t baud)
             previous_baud = baud;
             // Set Revo port hwsettings_baud
             PIOS_COM_ChangeBaud(PIOS_COM_GPS, hwsettings_gpsspeed_enum_to_baud(baud));
+            PIOS_COM_ClearRxBuffer(PIOS_COM_GPS);
             GPSPositionSensorBaudRateSet(&baud);
         } else {
             DEBUG_PRINTF(3, "SetBaud:%d - NoChange\r", baud);
