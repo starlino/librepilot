@@ -197,7 +197,6 @@ int parse_ubx_stream(uint8_t *rx, uint16_t len, char *gps_rx_buffer, GPSPosition
                     restart_state = RESTART_NO_ERROR;
                 } else {
                     restart_state = RESTART_WITH_ERROR;
-                    DEBUG_PRINTF(3, "UbxPayloadError: 0x%02x:0x%02x\r", ubx->header.class, ubx->header.id);
                 }
 #endif
                 // We won't see the end of the packet. Which means it is useless to do any further processing.
@@ -249,7 +248,6 @@ int parse_ubx_stream(uint8_t *rx, uint16_t len, char *gps_rx_buffer, GPSPosition
             } else {
                 gpsRxStats->gpsRxChkSumError++;
                 restart_state = RESTART_WITH_ERROR;
-                DEBUG_PRINTF(3, "UbxCheckError\r");
                 break;
             }
             continue;
@@ -549,7 +547,6 @@ static void parse_ubx_mon_ver(struct UBXPacket *ubx, __attribute__((unused)) GPS
     // send sensor type right now because on UBX NEMA we don't get a full set of messages
     // and we want to be able to see sensor type even on UBX NEMA GPS's
     GPSPositionSensorSensorTypeSet((uint8_t *)&ubxSensorType);
-    DEBUG_PRINTF(3, "ParseMonVer\r");
 }
 
 static void parse_ubx_op_sys(struct UBXPacket *ubx, __attribute__((unused)) GPSPositionSensorData *GpsPosition)
@@ -621,7 +618,6 @@ uint32_t parse_ubx_message(struct UBXPacket *ubx, GPSPositionSensorData *GpsPosi
             // see OP GPSV9 comment in parse_ubx_stream() for further information
             status = GPSPOSITIONSENSOR_STATUS_NOFIX;
             GPSPositionSensorStatusSet(&status);
-            DEBUG_PRINTF(3, "Detected UBX\r");
         }
     }
     return id;

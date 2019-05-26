@@ -269,7 +269,6 @@ static void config_reset(uint16_t *bytes_to_send)
     status->working_packet.message.payload.cfg_cfg.deviceMask = UBX_CFG_CFG_DEVICE_ALL;
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_CFG, sizeof(ubx_cfg_cfg_t));
-    DEBUG_PRINTF(3, "CfgReset\r");
 }
 
 
@@ -290,7 +289,6 @@ static void config_gps_baud(uint16_t *bytes_to_send)
 
     // GPS will be found later at this new_gps_speed
     new_gps_speed  = hwsettings_baud;
-    DEBUG_PRINTF(3, "CfgBaud: %d\r", new_gps_speed);
 }
 
 
@@ -313,7 +311,7 @@ static void config_rate(uint16_t *bytes_to_send, bool min_rate)
     status->working_packet.message.payload.cfg_rate.timeRef  = 1; // 0 = UTC Time, 1 = GPS Time
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_RATE, sizeof(ubx_cfg_rate_t));
-    DEBUG_PRINTF(3, "CfgRate: %dHz\r", rate);
+
     if (min_rate) {
         // used for INIT_STEP_SET_LOWRATE step
         status->lastConfigSent = LAST_CONFIG_SENT_COMPLETED;
@@ -330,7 +328,6 @@ static void config_nav(uint16_t *bytes_to_send)
     status->working_packet.message.payload.cfg_nav5.mask     = UBX_CFG_NAV5_DYNMODEL + UBX_CFG_NAV5_FIXMODE;
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_NAV5, sizeof(ubx_cfg_nav5_t));
-    DEBUG_PRINTF(3, "CfgNav\r");
 }
 
 static void config_navx(uint16_t *bytes_to_send)
@@ -340,7 +337,6 @@ static void config_navx(uint16_t *bytes_to_send)
     status->working_packet.message.payload.cfg_navx5.mask1  = UBX_CFG_NAVX5_AOP;
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_NAVX5, sizeof(ubx_cfg_navx5_t));
-    DEBUG_PRINTF(3, "CfgNavX\r");
 }
 
 
@@ -366,7 +362,6 @@ static void config_sbas(uint16_t *bytes_to_send)
         UBX_CFG_SBAS_SCANMODE2;
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_SBAS, sizeof(ubx_cfg_sbas_t));
-    DEBUG_PRINTF(3, "CfgSBAS\n");
 }
 
 
@@ -428,7 +423,6 @@ static void config_gnss(uint16_t *bytes_to_send)
     }
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_GNSS, sizeof(ubx_cfg_gnss_t));
-    DEBUG_PRINTF(3, "CfgGNSS\r");
 }
 
 
@@ -442,7 +436,6 @@ static void config_save(uint16_t *bytes_to_send)
     status->working_packet.message.payload.cfg_cfg.deviceMask = UBX_CFG_CFG_DEVICE_ALL;
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_CFG, sizeof(ubx_cfg_cfg_t));
-    DEBUG_PRINTF(3, "CfgSavenew: %d\r", new_gps_speed);
 }
 
 static void configure(uint16_t *bytes_to_send)
@@ -608,7 +601,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 
             // increase baud_to_try for next try, in case ubxHwVersion is not set
             baud_to_try = (baud_to_try < HWSETTINGS_GPSSPEED_230400) ? baud_to_try + 1 : HWSETTINGS_GPSSPEED_2400;
-            DEBUG_PRINTF(3, "IncreaseBaudToTry\r");
         }
 
         // this code is executed even if ubxautoconfig is disabled
@@ -645,7 +637,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         // keep timeouts running properly, we (will have) just sent a packet that generates a reply
         set_current_step_if_untouched(INIT_STEP_WAIT_MON_VER_ACK);
         status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
-        DEBUG_PRINTF(3, "Mon_verRefresh\r");
         break;
 
     case INIT_STEP_WAIT_MON_VER_ACK:
