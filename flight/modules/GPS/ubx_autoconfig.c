@@ -107,7 +107,7 @@ ubx_cfg_msg_t msg_config_ubx6[] = {
 
     { .msgClass = UBX_CLASS_RXM, .msgID = UBX_ID_RXM_SVSI,    .rate = 0  },
 
-    // message to enable
+    // message to enable, keep SVINFO at end
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_POSLLH,  .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_DOP,     .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SOL,     .rate = 1  },
@@ -141,7 +141,7 @@ ubx_cfg_msg_t msg_config_ubx7[] = {
 
     { .msgClass = UBX_CLASS_RXM, .msgID = UBX_ID_RXM_SVSI,      .rate = 0  },
 
-    // message to enable
+    // message to enable, keep SVINFO at end
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_PVT,       .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_DOP,       .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO,    .rate = 10 },
@@ -315,6 +315,7 @@ static void config_rate(uint16_t *bytes_to_send, bool min_rate)
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_RATE, sizeof(ubx_cfg_rate_t));
     DEBUG_PRINTF(3, "CfgRate: %dHz\r", rate);
     if (min_rate) {
+        // used for INIT_STEP_SET_LOWRATE step
         status->lastConfigSent = LAST_CONFIG_SENT_COMPLETED;
     }
 }
@@ -500,6 +501,7 @@ static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send, bo
                                 &msg_config_ubx7[0] : &msg_config_ubx6[0];
 
     if (msg >= 0 && msg < msg_count) {
+        // last message is SVINFO, disable if needed
         status->working_packet.message.payload.cfg_msg = (msg == (msg_count - 1) && disable_svinfo) ? msg_config_ubx_disable_svinfo[0] : msg_config[msg];
         *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_MSG, sizeof(ubx_cfg_msg_t));
     } else {
@@ -515,7 +517,7 @@ static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send, bo
 
 #if defined(AUTOBAUD_CONFIGURE_STORE_AND_DISABLE)
 // permanently store our version of GPSSettings.UbxAutoConfig
-// we use this to disable after AbConfigStoreAndDisable is complete
+// we use this to disable after AutoBaudConfigureStoreAndDisable is complete
 static void setGpsSettings()
 {
     // trying to do this as perfectly as possible we must realize that they may have pressed Send on some fields
@@ -574,10 +576,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         // at low baud rates and high data rates the ubx gps simply must drop some outgoing data
         // this isn't really an error
         // and when a lot of data is being dropped, the MON VER reply often gets dropped
-        // on the other hand, uBlox documents that some versions discard data that is over 1 second old
-        // implying a 1 second send buffer and that it could be over 1 second before a reply is received
-        // later uBlox versions dropped this 1 second constraint and drop data when the send buffer is full
-        // and that could be even longer than 1 second
 
         uint32_t time_to_wait = UBX_PARSER_TIMEOUT;
         // Add extra time to detect ubxHwVersion in case detection
@@ -590,19 +588,15 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
             return;
         }
 
-        // at this point we have already waited for the MON_VER reply to time out (except the first time where it times out without being sent)
+        // at this point we have already waited for the MON_VER reply to time out
         // and the fact we are here says that ubxHwVersion has not been set (it is set externally)
         // so this try at this baud rate has failed
-        // if we get here
-        // select the next baud rate, skipping ahead if new baud rate is HwSettings.GPSSpeed
-        // set Revo baud rate to current++ value (immediate change so we can send right after that) and send the MON_VER request
-        // baud rate search order are most likely matches first
+        // if we get here set Revo baud rate to the previous incremented value and send the MON_VER request
 
         // if AutoBaud or higher, do AutoBaud
         if (status->currentSettings.UbxAutoConfig >= GPSSETTINGS_UBXAUTOCONFIG_AUTOBAUD) {
             // first try HwSettings.GPSSpeed and then
-            // get the next baud rate to try from the table, but skip over the value of HwSettings.GPSSpeed
-            // new_gps_speed is not initialized yet
+            // at startup new_gps_speed is not initialized yet
             if (new_gps_speed > HWSETTINGS_GPSSPEED_230400) {
                 // try current speed set in HwSettings.GPSSpeed
                 HwSettingsGPSSpeedGet(&hwsettings_baud);
@@ -612,7 +606,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
             // set the FC (Revo) baud rate
             gps_set_fc_baud_from_arg(baud_to_try);
 
-            // increase baud_to_try for next try
+            // increase baud_to_try for next try, in case ubxHwVersion is not set
             baud_to_try = (baud_to_try < HWSETTINGS_GPSSPEED_230400) ? baud_to_try + 1 : HWSETTINGS_GPSSPEED_2400;
             DEBUG_PRINTF(3, "IncreaseBaudToTry\r");
         }
@@ -747,7 +741,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 
     // Revo and GPS are both at 9600 baud
     case INIT_STEP_GPS_BAUD:
-        // wait for previous step
+        // wait for previous step (INIT_STEP_SET_LOWRATE)
         if (PIOS_DELAY_DiffuS(status->lastStepTimestampRaw) < UBX_UNVERIFIED_STEP_WAIT_TIME) {
             return;
         }
