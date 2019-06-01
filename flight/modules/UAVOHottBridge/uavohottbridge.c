@@ -334,7 +334,7 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
             }
 
             edit_status  = build_TEXT_message((struct hott_text_message *)tx_buffer, page, current_line, value_change, step_change, edit_line, exit_menu);
-            message_size = sizeof(tx_buffer);
+            message_size = sizeof(struct hott_text_message);
             if (edit_status == HOTTTEXT_EDITSTATUS_DONE) {
                 // Save and exit edit mode
                 store_settings(page, current_line);
@@ -356,8 +356,6 @@ static void uavoHoTTBridgeTask(__attribute__((unused)) void *parameters)
                 for (int i = 0; i < message_size; i++) {
                     // send message content with pause between each byte
                     PIOS_COM_SendCharNonBlocking(PIOS_COM_HOTT, tx_buffer[i]);
-                    // grab possible incoming loopback data and throw it away
-                    PIOS_COM_ReceiveBuffer(PIOS_COM_HOTT, rx_buffer, sizeof(rx_buffer), 0);
                     vTaskDelayUntil(&lastSysTime, datadelay / portTICK_RATE_MS);
                 }
                 status.TxPackets++;
