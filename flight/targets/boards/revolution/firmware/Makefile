@@ -57,6 +57,7 @@ OPTMODULES += AutoTune
 OPTMODULES += Temperature
 OPTMODULES += ComUsbBridge
 OPTMODULES += UAVOHottBridge
+OPTMODULES += UAVOFrSKYSPortBridge
 OPTMODULES += UAVOMSPBridge
 OPTMODULES += UAVOMavlinkBridge
 OPTMODULES += UAVOFrSKYSensorHubBridge
@@ -97,6 +98,7 @@ ifndef TESTAPP
     SRC += $(FLIGHTLIB)/auxmagsupport.c
     SRC += $(FLIGHTLIB)/lednotification.c    
     SRC += $(FLIGHTLIB)/sha1.c
+    SRC += $(FLIGHTLIB)/frsky_packing.c
 
     ## UAVObjects
     include ./UAVObjects.inc
