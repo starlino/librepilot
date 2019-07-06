@@ -1,5 +1,5 @@
 <xml>
-	<object name="FrSKYSPortTelemetrySettings" singleinstance="true" settings="true">
+	<object name="FrSKYSPortTelemetrySettings" singleinstance="true" settings="true" category="System">
 		<description>FrSKY S.Port Telemetry configuration.</description>
 
 		<field name="AccelData" units="" type="enum" elements="1" options="Accels,NEDAccels, NEDVelocity, AttitudeAngles" defaultvalue="Accels"/>
