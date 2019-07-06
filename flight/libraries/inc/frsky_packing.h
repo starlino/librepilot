@@ -2,7 +2,8 @@
  ******************************************************************************
  *
  * @file       frsky_packing.h
- * @author     Tau Labs, http://taulabs.org, Copyright (C) 2015
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017-2019
+ *             Tau Labs, http://taulabs.org, Copyright (C) 2015
  * @brief      Packs UAVObjects into FrSKY Smart Port frames
  *
  * Since there is no public documentation of SmartPort protocol available,
