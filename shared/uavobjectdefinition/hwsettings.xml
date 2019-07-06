@@ -35,6 +35,7 @@
 		<field name="ADCRouting" units="" type="enum" elementnames="adc0,adc1,adc2,adc3,adc4,adc5,adc6,adc7" options="Disabled,BatteryVoltage,BatteryCurrent,AnalogAirspeed,NTCTemperature,LM35Temperature,Generic" defaultvalue="Disabled"/>
 		<field name="DSMxBind" units=""	 type="uint8"  elements="1" defaultvalue="0"/>
 		<field name="SBusMode" units="" type="enum" elements="1" options="Normal,Non Inverted" defaultvalue="Normal"/>
+		<field name="SPortMode" units="" type="enum" elements="1" options="HalfDuplexNonInverted,HalfDuplexInverted,FullDuplexNonInverted,FullDuplexInverted" defaultvalue="HalfDuplexNonInverted"/>
 		<field name="WS2811LED_Out" units="" type="enum" elements="1" options="ServoOut1,ServoOut2,ServoOut3,ServoOut4,ServoOut5,ServoOut6,FlexiIOPin3,FlexiIOPin4,Disabled" defaultvalue="Disabled"
 		limits="%0905NE:ServoOut2:ServoOut3:ServoOut4:ServoOut5:ServoOut6:FlexiIOPin3:FlexiIOPin4;"
 		/>

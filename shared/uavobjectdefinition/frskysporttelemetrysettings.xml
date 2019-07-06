@@ -3,7 +3,6 @@
 		<description>FrSKY S.Port Telemetry configuration.</description>
 
 		<field name="AccelData" units="" type="enum" elements="1" options="Accels,NEDAccels, NEDVelocity, AttitudeAngles" defaultvalue="Accels"/>
-		<field name="PortMaster" units="" type="enum" elements="1" options="False,True" defaultvalue="False"/>
 
 		<access gcs="readwrite" flight="readwrite"/>
 		<telemetrygcs acked="true" updatemode="onchange" period="0"/>

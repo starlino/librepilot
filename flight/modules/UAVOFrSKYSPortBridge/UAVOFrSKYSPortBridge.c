@@ -43,6 +43,7 @@
 #include "flightbatterystate.h"
 #include "gpspositionsensor.h"
 #include "frskysporttelemetrysettings.h"
+#include "hwsettings.h"
 #include "taskinfo.h"
 
 
@@ -88,7 +89,6 @@ struct frsky_sport_telemetry {
     int32_t   scheduled_item;
     uint32_t  last_poll_time;
     uintptr_t com;
-    bool master;
     bool ignore_echo;
     uint8_t   ignore_rx_chars;
     struct frsky_settings frsky_settings;
@@ -254,8 +254,6 @@ static void FrSKYSPortTelemetrySettingsUpdatedCb(__attribute__((unused)) UAVObjE
     FrSKYSPortTelemetrySettingsData settings;
 
     FrSKYSPortTelemetrySettingsGet(&settings);
-
-    frsky->master = (settings.PortMaster == FRSKYSPORTTELEMETRYSETTINGS_PORTMASTER_TRUE);
 }
 
 
@@ -293,14 +291,42 @@ static int32_t uavoFrSKYSPortBridgeInitialize(void)
                 frsky->item_last_triggered[i] = PIOS_DELAY_GetuS();
             }
 
+            // Set Port options:
+            // BAUD rate
+            PIOS_COM_ChangeBaud(frsky->com, FRSKY_SPORT_BAUDRATE);
+
+            HwSettingsSPortModeOptions options;
+            HwSettingsSPortModeGet(&options);
+            bool halfduplex;
+            enum PIOS_USART_Inverted inverted;
+            switch (options) {
+            case HWSETTINGS_SPORTMODE_HALFDUPLEXNONINVERTED:
+                halfduplex = true;
+                inverted   = PIOS_USART_Inverted_None;
+                break;
+            case HWSETTINGS_SPORTMODE_HALFDUPLEXINVERTED:
+                halfduplex = true;
+                inverted   = PIOS_USART_Inverted_RxTx;
+                break;
+            case HWSETTINGS_SPORTMODE_FULLDUPLEXNONINVERTED:
+                halfduplex = false;
+                inverted   = PIOS_USART_Inverted_None;
+                break;
+            case HWSETTINGS_SPORTMODE_FULLDUPLEXINVERTED:
+                halfduplex = false;
+                inverted   = PIOS_USART_Inverted_RxTx;
+                break;
+            }
+
+            // Port Inversion (Not available on STM32F4, will have no effect)
+            PIOS_COM_Ioctl(frsky->com, PIOS_IOCTL_USART_SET_INVERTED, &inverted);
+
+            // HalfDplex mode (Not available on STM32F0, will have no effect)
+            PIOS_COM_Ioctl(frsky->com, PIOS_IOCTL_USART_SET_HALFDUPLEX, &halfduplex);
+
             FrSKYSPortTelemetrySettingsConnectCallback(FrSKYSPortTelemetrySettingsUpdatedCb);
 
             FrSKYSPortTelemetrySettingsUpdatedCb(0);
-
-            PIOS_COM_ChangeBaud(frsky->com, FRSKY_SPORT_BAUDRATE);
-            bool param = true;
-            PIOS_COM_Ioctl(frsky->com, PIOS_IOCTL_USART_SET_HALFDUPLEX, &param);
-
 
             return 0;
         }
