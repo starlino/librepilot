@@ -1,12 +1,13 @@
 /**
  ******************************************************************************
- * @addtogroup TauLabsModules TauLabs Modules
+ * @addtogroup OpenPilotModules OpenPilot Modules
  * @{
  * @addtogroup UAVOFrSKYSPortBridge UAVO to FrSKY S.PORT Bridge Module
  * @{
  *
  * @file       uavofrskysportbridge.c
- * @author     Tau Labs, http://taulabs.org, Copyright (C) 2014
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017-2019
+ *             Tau Labs, http://taulabs.org, Copyright (C) 2014
  * @brief      Bridges selected UAVObjects to FrSKY Smart Port bus
  *
  * Since there is no public documentation of SmartPort protocol available,
@@ -34,6 +35,8 @@
  */
 
 #include "frsky_packing.h"
+
+#include "pios_board_io.h"
 
 #include "barosensor.h"
 #include "flightbatterysettings.h"
@@ -277,7 +280,12 @@ static int32_t uavoFrSKYSPortBridgeInitialize(void)
             frsky->last_poll_time = PIOS_DELAY_GetuS();
             frsky->scheduled_item = -1;
             frsky->com   = PIOS_COM_FRSKY_SPORT;
-            frsky->ignore_echo = true; // This has to be true when RX & TX hw serial lines are connected. Otherwise false.
+            frsky->ignore_echo = true; // This has to be true when RX & TX hw serial lines are connected. Otherwise false. (enforced below by setting half duplex. this makes internal connection between rx and tx
+            // connect TX pin of flight controller to UNINVERTED SPort
+            // (F4 based controllers do not have TX inversion capability.
+            // Use external inverter or solder to uninverted receiver pin)
+            // TODO: Add code/PIOS driver to enable inversion for F3 based convertes
+            // TODO: implement FPORT driver
             frsky->schedule_nr = 1;
 
             uint8_t i;
@@ -290,6 +298,9 @@ static int32_t uavoFrSKYSPortBridgeInitialize(void)
             FrSKYSPortTelemetrySettingsUpdatedCb(0);
 
             PIOS_COM_ChangeBaud(frsky->com, FRSKY_SPORT_BAUDRATE);
+            bool param = true;
+            PIOS_COM_Ioctl(frsky->com, PIOS_IOCTL_USART_SET_HALFDUPLEX, &param);
+
 
             return 0;
         }

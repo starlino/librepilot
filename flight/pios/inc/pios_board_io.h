@@ -173,16 +173,28 @@ extern uint32_t pios_com_frsky_sensorhub_id;
 # define PIOS_COM_FRSKY_SENSORHUB_TX_BUF_LEN 128
 #endif
 
+/* Frsky Sport */
+#ifdef PIOS_INCLUDE_FRSKY_SPORT
+extern uint32_t pios_com_frsky_sport_id;
+# define PIOS_COM_FRSKY_SPORT             (pios_com_frsky_sport_id)
+# ifndef PIOS_COM_FRSKY_SPORT_RX_BUF_LEN
+#  define PIOS_COM_FRSKY_SPORT_RX_BUF_LEN 16
+# endif
+# ifndef PIOS_COM_FRSKY_SPORT_TX_BUF_LEN
+#  define PIOS_COM_FRSKY_SPORT_TX_BUF_LEN 16
+# endif
+#endif
+
 /* USB VCP */
 extern uint32_t pios_com_vcp_id;
-#define PIOS_COM_VCP                         (pios_com_vcp_id)
+#define PIOS_COM_VCP                      (pios_com_vcp_id)
 
 
 #ifdef PIOS_INCLUDE_DEBUG_CONSOLE
 extern uint32_t pios_com_debug_id;
-#define PIOS_COM_DEBUG                       (pios_com_debug_id)
+#define PIOS_COM_DEBUG                    (pios_com_debug_id)
 #ifndef PIOS_COM_DEBUGCONSOLE_TX_BUF_LEN
-# define PIOS_COM_DEBUGCONSOLE_TX_BUF_LEN    40
+# define PIOS_COM_DEBUGCONSOLE_TX_BUF_LEN 40
 #endif
 #endif /* PIOS_INCLUDE_DEBUG_CONSOLE */
 
@@ -215,9 +227,9 @@ typedef enum {
     PIOS_BOARD_IO_UART_SRXL, /* rcvr */
     PIOS_BOARD_IO_UART_IBUS, /* rcvr */
     PIOS_BOARD_IO_UART_EXBUS, /* rcvr */
-// PIOS_BOARD_IO_UART_FRSKY_SPORT_TELEMETRY, /* com */
     PIOS_BOARD_IO_UART_HOTT_BRIDGE, /* com */
     PIOS_BOARD_IO_UART_FRSKY_SENSORHUB, /* com */
+    PIOS_BOARD_IO_UART_FRSKY_SPORT, /* com */
 } PIOS_BOARD_IO_UART_Function;
 
 

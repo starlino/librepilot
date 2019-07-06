@@ -216,6 +216,7 @@ bool frsky_encode_t1(struct frsky_settings *frsky, uint32_t *value, bool test_pr
         t1 = 300;
         break;
     case GPSPOSITIONSENSOR_STATUS_FIX3D:
+    case GPSPOSITIONSENSOR_STATUS_FIX3DDGNSS:
         if (hl_set == HOMELOCATION_SET_TRUE) {
             t1 = 500;
         } else {
