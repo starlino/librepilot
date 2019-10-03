@@ -662,7 +662,10 @@ static uint8_t conditionPointingTowardsNext()
     WaypointData nextWaypoint;
     WaypointInstGet(nextWaypointId, &nextWaypoint);
 
-    float angle1 = atan2f((nextWaypoint.Position.North - waypoint.Position.North), (nextWaypoint.Position.East - waypoint.Position.East));
+    PositionStateData positionState;
+    PositionStateGet(&positionState);
+	
+    float angle1 = atan2f((nextWaypoint.Position.North - positionState.North), (nextWaypoint.Position.East - positionState.East));
 
     VelocityStateData velocity;
     VelocityStateGet(&velocity);
