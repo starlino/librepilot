@@ -128,8 +128,6 @@ void ConfigCameraStabilizationWidget::refreshWidgetsValuesImpl(UAVObject *obj)
         &mixerSettingsData.Mixer8Type,
         &mixerSettingsData.Mixer9Type,
         &mixerSettingsData.Mixer10Type,
-        &mixerSettingsData.Mixer11Type,
-        &mixerSettingsData.Mixer12Type,
     };
     const int NUM_MIXERS = sizeof(mixerTypes) / sizeof(mixerTypes[0]);
 
@@ -185,8 +183,6 @@ void ConfigCameraStabilizationWidget::updateObjectsFromWidgetsImpl()
         &mixerSettingsData.Mixer8Type,
         &mixerSettingsData.Mixer9Type,
         &mixerSettingsData.Mixer10Type,
-        &mixerSettingsData.Mixer11Type,
-        &mixerSettingsData.Mixer12Type,
     };
     const int NUM_MIXERS = sizeof(mixerTypes) / sizeof(mixerTypes[0]);
 
