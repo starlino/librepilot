@@ -39,7 +39,7 @@ const struct pios_flash_jedec_cfg pios_flash_jedec_catalog[] =
     { // m25p16
         .expect_manufacturer = JEDEC_MANUFACTURER_ST,
         .expect_memorytype   = 0x20,
-        .expect_capacity     = 0x15,
+        .expect_capacity     = 0x15, // these chips all have 2^expect_capacity bytes
         .sector_erase = 0xD8,
         .chip_erase   = 0xC7,
         .fast_read    = 0x0B,
@@ -48,7 +48,7 @@ const struct pios_flash_jedec_cfg pios_flash_jedec_catalog[] =
     { // m25px16
         .expect_manufacturer = JEDEC_MANUFACTURER_ST,
         .expect_memorytype   = 0x71,
-        .expect_capacity     = 0x15,
+        .expect_capacity     = 0x15, // these chips all have 2^expect_capacity bytes
         .sector_erase = 0xD8,
         .chip_erase   = 0xC7,
         .fast_read    = 0x0B,
@@ -57,43 +57,43 @@ const struct pios_flash_jedec_cfg pios_flash_jedec_catalog[] =
     { // w25x
         .expect_manufacturer = JEDEC_MANUFACTURER_WINBOND,
         .expect_memorytype   = 0x30,
-        .expect_capacity     = 0x13,
-        .sector_erase = 0x20,
-        .chip_erase   = 0x60,
+        .expect_capacity     = 0x13, // these chips all have 2^expect_capacity bytes
+        .sector_erase = 0xD8,        // 0xD8 is the 64k sector erase command, 0x20 erases 4k sectors, flashfs_m25p_cfg has fixed 64k sectors
+        .chip_erase   = 0x60,        // chip_erase is 0x60 or 0xC7
         .fast_read    = 0x0B,
         .fast_read_dummy_bytes = 1,
     },
     { // 25q16
         .expect_manufacturer = JEDEC_MANUFACTURER_WINBOND,
         .expect_memorytype   = 0x40,
-        .expect_capacity     = 0x15,
-        .sector_erase = 0x20,
-        .chip_erase   = 0x60,
+        .expect_capacity     = 0x15, // these chips all have 2^expect_capacity bytes
+        .sector_erase = 0xD8,        // 0xD8 is the 64k sector erase command, 0x20 erases 4k sectors, flashfs_m25p_cfg has fixed 64k sectors
+        .chip_erase   = 0x60,        // chip_erase is 0x60 or 0xC7
         .fast_read    = 0x0B,
         .fast_read_dummy_bytes = 1,
     },
     { // 25q64
         .expect_manufacturer = JEDEC_MANUFACTURER_WINBOND,
         .expect_memorytype   = 0x40,
-        .expect_capacity     = 0x17,
-        .sector_erase = 0x20,
-        .chip_erase   = 0x60,
+        .expect_capacity     = 0x17, // these chips all have 2^expect_capacity bytes
+        .sector_erase = 0xD8,        // 0xD8 is the 64k sector erase command, 0x20 erases 4k sectors, flashfs_m25p_cfg has fixed 64k sectors
+        .chip_erase   = 0x60,        // chip_erase is 0x60 or 0xC7
         .fast_read    = 0x0B,
         .fast_read_dummy_bytes = 1,
     },
-    { // 25q512
+    { // 25q512, note that devices over 128Mb=16MB probably require recoding to use 4 byte addresses
         .expect_manufacturer = JEDEC_MANUFACTURER_MICRON,
         .expect_memorytype   = 0xBA,
-        .expect_capacity     = 0x20,
-        .sector_erase = 0xD8,
+        .expect_capacity     = 0x1A, // pretty sure this should be 0x1A and not 0x20 (author counted 0x19 then 0x20, should have been 0x1A)
+        .sector_erase = 0xD8,        // (these chips all have 2^expect_capacity bytes)
         .chip_erase   = 0xC7,
         .fast_read    = 0x0B,
         .fast_read_dummy_bytes = 1,
     },
-    { // 25q256
+    { // 25q256, note that devices over 128Mb=16MB probably require recoding to use 4 byte addresses
         .expect_manufacturer = JEDEC_MANUFACTURER_NUMORIX,
         .expect_memorytype   = 0xBA,
-        .expect_capacity     = 0x19,
+        .expect_capacity     = 0x19, // these chips all have 2^expect_capacity bytes
         .sector_erase = 0xD8,
         .chip_erase   = 0xC7,
         .fast_read    = 0x0B,
@@ -102,7 +102,7 @@ const struct pios_flash_jedec_cfg pios_flash_jedec_catalog[] =
     { // 25q128
         .expect_manufacturer = JEDEC_MANUFACTURER_MICRON,
         .expect_memorytype   = 0xBA,
-        .expect_capacity     = 0x18,
+        .expect_capacity     = 0x18, // these chips all have 2^expect_capacity bytes
         .sector_erase = 0xD8,
         .chip_erase   = 0xC7,
         .fast_read    = 0x0B,
