@@ -339,10 +339,23 @@ void updatePathDesired()
         WaypointData waypointPrev;
         WaypointInstGet(waypointActive.Index - 1, &waypointPrev);
 
-        pathDesired.Start.North = waypointPrev.Position.North;
-        pathDesired.Start.East  = waypointPrev.Position.East;
-        pathDesired.Start.Down  = waypointPrev.Position.Down;
-        pathDesired.StartingVelocity = waypointPrev.Velocity;
+        // When exiting CIRCLE, use current UAV position as a start point for PathDesired vector to the next waypoint
+        // instead of previous waypoint location (that represents the center of the circle)
+        PathActionData prevAction;
+        PathActionInstGet(waypointPrev.Action, &prevAction);
+        if ((prevAction.Mode == PATHACTION_MODE_CIRCLERIGHT) || (prevAction.Mode == PATHACTION_MODE_CIRCLELEFT)) {
+            PositionStateData positionState;
+            PositionStateGet(&positionState);
+            pathDesired.Start.North = positionState.North;
+            pathDesired.Start.East  = positionState.East;
+            pathDesired.Start.Down  = positionState.Down;
+            pathDesired.StartingVelocity = waypointPrev.Velocity;
+        } else {
+            pathDesired.Start.North = waypointPrev.Position.North;
+            pathDesired.Start.East  = waypointPrev.Position.East;
+            pathDesired.Start.Down  = waypointPrev.Position.Down;
+            pathDesired.StartingVelocity = waypointPrev.Velocity;
+        }
     }
 
     PathDesiredSet(&pathDesired);
