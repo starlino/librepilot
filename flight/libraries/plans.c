@@ -495,7 +495,7 @@ void plan_run_VelocityRoam()
     cmd.Pitch = applyExpo(cmd.Pitch, stabSettings.StickExpo.Pitch);
     cmd.Yaw   = applyExpo(cmd.Yaw, stabSettings.StickExpo.Yaw);
 
-    bool flagRollPitchHasInput = (fabsf(cmd.Roll) > 0.0f || fabsf(cmd.Pitch) > 0.0f);
+    bool flagRollPitchHasInput = (fabsf(cmd.Roll) > 0.05f || fabsf(cmd.Pitch) > 0.05f);
 
     if (!flagRollPitchHasInput) {
         // no movement desired, re-enter positionHold at current start-position
