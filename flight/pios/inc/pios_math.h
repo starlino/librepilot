@@ -26,6 +26,9 @@
 
 #ifndef PIOS_MATH_H
 #define PIOS_MATH_H
+
+#include <math.h>
+
 // Generic float math constants
 #define M_E_F        2.71828182845904523536028747135f      /* e */
 #define M_LOG2E_F    1.44269504088896340735992468100f      /* log_2 (e) */
@@ -79,12 +82,9 @@
 #define MAX(a, b)         ((a) > (b) ? (a) : (b))
 #define MIN(a, b)         ((a) < (b) ? (a) : (b))
 
-#ifndef isfinite
-    #include <math.h>
-#endif
 __attribute__((optimize("no-fast-math"))) static inline int IS_REAL(float f)
 {
-    return isfinite(f);
+    return !(isnan(f) || isinf(f));
 }
 
 // Bitfield access
