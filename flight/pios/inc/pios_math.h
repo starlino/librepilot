@@ -66,20 +66,26 @@
 #define M_EULER_D    0.57721566490153286060651209008d      /* Euler constant */
 
 // Conversion macro
-#define RAD2DEG(rad)            ((rad) * (180.0f / M_PI_F))
-#define DEG2RAD(deg)            ((deg) * (M_PI_F / 180.0f))
+#define RAD2DEG(rad)      ((rad) * (180.0f / M_PI_F))
+#define DEG2RAD(deg)      ((deg) * (M_PI_F / 180.0f))
 
-#define RAD2DEG_D(rad)          ((rad) * (180.0d / M_PI_D))
-#define DEG2RAD_D(deg)          ((deg) * (M_PI_D / 180.0d))
+#define RAD2DEG_D(rad)    ((rad) * (180.0d / M_PI_D))
+#define DEG2RAD_D(deg)    ((deg) * (M_PI_D / 180.0d))
 
 // helper macros for LPFs
-#define LPF_ALPHA(dt, fc)       (dt / (dt + 1.0f / (2.0f * M_PI_F * fc)))
+#define LPF_ALPHA(dt, fc) (dt / (dt + 1.0f / (2.0f * M_PI_F * fc)))
 
 // Useful math macros
-#define MAX(a, b)               ((a) > (b) ? (a) : (b))
-#define MIN(a, b)               ((a) < (b) ? (a) : (b))
+#define MAX(a, b)         ((a) > (b) ? (a) : (b))
+#define MIN(a, b)         ((a) < (b) ? (a) : (b))
 
-#define IS_REAL(f)              (isfinite(f))
+#ifndef isfinite
+    #include <math.h>
+#endif
+__attribute__((optimize("no-fast-math"))) static inline int IS_REAL(float f)
+{
+    return isfinite(f);
+}
 
 // Bitfield access
 #define IS_SET(field, mask)     (((field) & (mask)) == (mask))
