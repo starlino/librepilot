@@ -678,6 +678,11 @@ static uint8_t conditionPointingTowardsNext()
     PositionStateData positionState;
     PositionStateGet(&positionState);
 	
+	// check if current position exactly matches nextWaipoint (in 2D space) 
+    if ((fabsf(nextWaypoint.Position.North - positionState.North) < 1e-6f) && (fabsf(nextWaypoint.Position.East - positionState.East) < 1e-6f)) {
+        return true;
+    }
+
     float angle1 = atan2f((nextWaypoint.Position.North - positionState.North), (nextWaypoint.Position.East - positionState.East));
 
     VelocityStateData velocity;
