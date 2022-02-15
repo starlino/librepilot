@@ -51,6 +51,9 @@
 #include "NMEA.h"
 #include "UBX.h"
 #include "DJI.h"
+#ifdef PIOS_INCLUDE_SENSORS_AUXMAG
+#include "sensors.h"
+#endif
 #if defined(PIOS_INCLUDE_GPS_UBX_PARSER) && !defined(PIOS_GPS_MINIMAL)
 #include "inc/ubx_autoconfig.h"
 #define FULL_UBX_PARSER
@@ -72,7 +75,7 @@ PERF_DEFINE_COUNTER(counterParse);
 #if defined(ANY_GPS_PARSER) && !defined(PIOS_GPS_MINIMAL)
 #define ANY_FULL_GPS_PARSER
 #endif
-#if (defined(PIOS_INCLUDE_HMC5X83) || defined(PIOS_INCLUDE_GPS_UBX_PARSER) || defined(PIOS_INCLUDE_GPS_DJI_PARSER)) && !defined(PIOS_GPS_MINIMAL)
+#if (defined(PIOS_INCLUDE_SENSORS_AUXMAG) || defined(PIOS_INCLUDE_GPS_UBX_PARSER) || defined(PIOS_INCLUDE_GPS_DJI_PARSER)) && !defined(PIOS_GPS_MINIMAL)
 #define ANY_FULL_MAG_PARSER
 #endif
 
@@ -653,8 +656,8 @@ void AuxMagSettingsUpdatedCb(__attribute__((unused)) UAVObjEvent *ev)
 #if defined(PIOS_INCLUDE_GPS_DJI_PARSER)
     dji_load_mag_settings();
 #endif
-#if defined(PIOS_INCLUDE_HMC5X83)
-    aux_hmc5x83_load_mag_settings();
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
+    sensors_auxmag_load_mag_settings();
 #endif
 }
 #endif /* defined(ANY_FULL_MAG_PARSER) */

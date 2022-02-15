@@ -71,6 +71,7 @@
 #include <CoordinateConversions.h>
 #include <pios_board_info.h>
 #include <string.h>
+#include "sensors.h"
 
 // Private constants
 #define STACK_SIZE_BYTES         1000
@@ -131,10 +132,6 @@ PERF_DEFINE_COUNTER(counterBaroPeriod);
 PERF_DEFINE_COUNTER(counterSensorPeriod);
 PERF_DEFINE_COUNTER(counterSensorResets);
 
-#if defined(PIOS_INCLUDE_HMC5X83)
-void aux_hmc5x83_load_settings();
-#endif
-
 // Private functions
 static void SensorsTask(void *parameters);
 static void settingsUpdatedCb(UAVObjEvent *objEv);
@@ -148,7 +145,7 @@ static void clearContext(sensor_fetch_context *sensor_context);
 static void handleAccel(float *samples, float temperature);
 static void handleGyro(float *samples, float temperature, uint32_t timestamp);
 static void handleMag(float *samples, float temperature);
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
 static void handleAuxMag(float *samples);
 #endif
 static void handleBaro(float sample, float temperature);
@@ -193,7 +190,7 @@ static float baro_temp_bias   = 0;
 static float baro_temperature = NAN;
 static uint8_t baro_temp_calibration_count = 0;
 
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
 // Allow AuxMag to be disabled without reboot
 // because the other mags are that way
 static bool useAuxMag = false;
@@ -211,7 +208,7 @@ int32_t SensorsInitialize(void)
     MagSensorInitialize();
     BaroSensorInitialize();
 
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
     // for auxmagsupport.c helpers
     AuxMagSensorInitialize();
 #endif
@@ -388,7 +385,7 @@ static void processSamples3d(sensor_fetch_context *sensor_context, const PIOS_SE
     float inv_count = 1.0f / (float)sensor_context->count;
     if ((sensor->type & PIOS_SENSORS_TYPE_3AXIS_ACCEL)
         || (sensor->type == PIOS_SENSORS_TYPE_3AXIS_MAG)
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
         || (sensor->type == PIOS_SENSORS_TYPE_3AXIS_AUXMAG)
 #endif
         ) {
@@ -403,7 +400,7 @@ static void processSamples3d(sensor_fetch_context *sensor_context, const PIOS_SE
             PERF_MEASURE_PERIOD(counterMagPeriod);
             return;
 
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
         case PIOS_SENSORS_TYPE_3AXIS_AUXMAG:
             handleAuxMag(samples);
             PERF_MEASURE_PERIOD(counterMagPeriod);
@@ -502,7 +499,7 @@ static void handleMag(float *samples, float temperature)
     MagSensorSet(&mag);
 }
 
-#if defined(PIOS_INCLUDE_HMC5X83)
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
 static void handleAuxMag(float *samples)
 {
     if (useAuxMag) {
@@ -641,8 +638,8 @@ static void settingsUpdatedCb(__attribute__((unused)) UAVObjEvent *objEv)
           fabsf(baroCorrection.d) > 1e-9f));
 }
 
-#if defined(PIOS_INCLUDE_HMC5X83)
-void aux_hmc5x83_load_mag_settings()
+#if defined(PIOS_INCLUDE_SENSORS_AUXMAG)
+void sensors_auxmag_load_mag_settings()
 {
     uint8_t magType = auxmagsupport_get_type();
 

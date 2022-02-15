@@ -1,18 +1,17 @@
 /**
  ******************************************************************************
- * @addtogroup OpenPilotModules OpenPilot Modules
+ * @addtogroup PIOS PIOS Core hardware abstraction layer
  * @{
- * @addtogroup Sensors
- * @brief Acquires sensor data
+ * @addtogroup PIOS_QMC5883L QMC5883L Functions
+ * @brief Deals with the hardware interface to the QMC5883L magnetometer
  * @{
  *
- * @file       sensors.c
- * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2015.
- * @brief      Module to handle fetch and preprocessing of sensor data
- *
+ * @file       pios_qmc5883l.h
+ * @author     The LibrePilot Project, http://www.librepilot.org, Copyright (C) 2018
+ * @brief      QMC5883L functions header.
  * @see        The GNU Public License (GPL) Version 3
  *
- ******************************************************************************/
+ *****************************************************************************/
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +27,14 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-#ifndef SENSORS_H
-#define SENSORS_H
 
-#include "openpilot.h"
+#ifndef PIOS_QMC5883L_H
+#define PIOS_QMC5883L_H
 
-int32_t SensorsInitialize(void);
-void sensors_auxmag_load_mag_settings(void);
+struct pios_qmc5883l_dev;
+typedef struct pios_qmc5883l_dev *pios_qmc5883l_dev_t;
 
-#endif // SENSORS_H
+extern pios_qmc5883l_dev_t PIOS_QMC5883L_Init(uint32_t i2c_device);
+
+
+#endif /* PIOS_QMC5883L_H */
