@@ -54,7 +54,9 @@ MODULES += Telemetry
 MODULES += Notify
 
 OPTMODULES += AutoTune
+OPTMODULES += Temperature
 OPTMODULES += ComUsbBridge
+OPTMODULES += UAVOHottBridge
 OPTMODULES += UAVOMSPBridge
 OPTMODULES += UAVOMavlinkBridge
 OPTMODULES += UAVOFrSKYSensorHubBridge

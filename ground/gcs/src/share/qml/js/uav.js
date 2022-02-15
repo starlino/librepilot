@@ -287,7 +287,7 @@ function gpsStatus() {
 }
 
 function fusionAlgorithm() {
-    var fusionAlgorithmText = ["None", "Basic (No Nav)", "CompMag", "Comp+Mag+GPS", "EKFIndoor", "GPSNav (INS)", "GPSNav (INS+CF)", "Testing (INS Indoor+CF)"];
+    var fusionAlgorithmText = ["None", "Basic (No Nav)", "Comp+GPS", "CompMag", "Comp+Mag+GPS", "EKFIndoor", "GPSNav (INS)", "GPSNav (INS+CF)", "Testing (INS Indoor+CF)", "Acro"];
 
     if (fusionAlgorithmText.length != RevoSettings.RevoSettingsConstants.FusionAlgorithmCount) {
         console.log("uav.js: fusionAlgorithm() do not match revoSettings.fusionAlgorithm uavo");
@@ -316,6 +316,18 @@ function oplmLinkState() {
 */
 function batteryModuleEnabled() {
     return (hwSettings.optionalModulesBattery == HwSettings.OptionalModules.Enabled);
+}
+
+function batteryADCConfigured() {
+    for (var i = 0; i < 8; i++) {
+        var adcRouting = hwSettings.getADCRouting(i);
+        if (adcRouting == HwSettings.ADCRouting.BatteryVoltage) {
+            return true;
+        } else if (adcRouting == HwSettings.ADCRouting.BatteryCurrent) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function batteryNbCells() {

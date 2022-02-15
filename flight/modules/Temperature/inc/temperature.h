@@ -1,13 +1,17 @@
 /**
  ******************************************************************************
+ * @addtogroup OpenPilotModules OpenPilot Modules
+ * @{
+ * @addtogroup TemperatureModule Temperature Module
+ * @{
  *
- * @file       fieldtreeitem.cpp
- * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
- * @addtogroup GCSPlugins GCS Plugins
- * @{
- * @addtogroup UAVObjectBrowserPlugin UAVObject Browser Plugin
- * @{
- * @brief The UAVObject Browser gadget plugin
+ * @file       temperature.h
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2019.
+ *             The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
+ * @brief      Module to read the temperature periodically from NTC or LM35 sensors.
+ *
+ * @see        The GNU Public License (GPL) Version 3
+ *
  *****************************************************************************/
 /*
  * This program is free software; you can redistribute it and/or modify
@@ -24,5 +28,16 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#ifndef TEMPERATURE_H
+#define TEMPERATURE_H
 
-#include "fieldtreeitem.h"
+#include "openpilot.h"
+
+int32_t TemperatureInitialize(void);
+
+#endif // TEMPERATURE_H
+
+/**
+ * @}
+ * @}
+ */

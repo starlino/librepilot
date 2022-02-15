@@ -86,6 +86,7 @@ static const PIOS_BOARD_IO_UART_Function flexi_function_map[] = {
     [HWSETTINGS_RM_FLEXIPORT_MSP] = PIOS_BOARD_IO_UART_MSP,
     [HWSETTINGS_RM_FLEXIPORT_MAVLINK]        = PIOS_BOARD_IO_UART_MAVLINK,
     [HWSETTINGS_RM_FLEXIPORT_FRSKYSENSORHUB] = PIOS_BOARD_IO_UART_FRSKY_SENSORHUB,
+    [HWSETTINGS_RM_FLEXIPORT_HOTTTELEMETRY]  = PIOS_BOARD_IO_UART_HOTT_BRIDGE,
 };
 
 static const PIOS_BOARD_IO_UART_Function main_function_map[] = {
@@ -98,6 +99,7 @@ static const PIOS_BOARD_IO_UART_Function main_function_map[] = {
     [HWSETTINGS_RM_MAINPORT_OSDHK]          = PIOS_BOARD_IO_UART_OSDHK,
     [HWSETTINGS_RM_MAINPORT_MSP]            = PIOS_BOARD_IO_UART_MSP,
     [HWSETTINGS_RM_MAINPORT_FRSKYSENSORHUB] = PIOS_BOARD_IO_UART_FRSKY_SENSORHUB,
+    [HWSETTINGS_RM_MAINPORT_HOTTTELEMETRY]  = PIOS_BOARD_IO_UART_HOTT_BRIDGE,
 };
 
 void PIOS_Board_Init(void)
@@ -207,6 +209,15 @@ void PIOS_Board_Init(void)
         PIOS_BOARD_IO_Configure_UART(&pios_usart_flexi_cfg, flexi_function_map[hwsettings_flexiport]);
     }
 
+#if defined(PIOS_INCLUDE_I2C)
+    if (hwsettings_flexiport == HWSETTINGS_RM_FLEXIPORT_I2C) {
+        if (PIOS_I2C_Init(&pios_i2c_flexiport_adapter_id, &pios_i2c_flexiport_adapter_cfg)) {
+            PIOS_Assert(0);
+        }
+    }
+#endif
+
+    /* Configure MainPort */
     uint8_t hwsettings_mainport;
     HwSettingsRM_MainPortGet(&hwsettings_mainport);
 
