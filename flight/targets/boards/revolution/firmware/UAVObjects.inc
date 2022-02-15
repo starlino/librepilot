@@ -130,6 +130,7 @@ UAVOBJSRCFILENAMES += hottbridgesettings
 UAVOBJSRCFILENAMES += hottbridgestatus
 UAVOBJSRCFILENAMES += takeofflocation
 UAVOBJSRCFILENAMES += perfcounter
+UAVOBJSRCFILENAMES += frskysporttelemetrysettings
 UAVOBJSRCFILENAMES += systemidentsettings
 UAVOBJSRCFILENAMES += systemidentstate
 
