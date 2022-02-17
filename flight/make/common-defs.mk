@@ -128,7 +128,7 @@ CFLAGS += -fomit-frame-pointer
 CFLAGS += -Wall -Wextra
 CFLAGS += -Wfloat-equal -Wdouble-promotion
 CFLAGS += -Wshadow
-CFLAGS += -Werror
+CFLAGS += -Werror -Wno-address-of-packed-member
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS)) -I.
 CFLAGS += -Wa,-adhlns=$(addprefix $(OUTDIR)/, $(notdir $(addsuffix .lst, $(basename $<))))
 

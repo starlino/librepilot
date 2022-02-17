@@ -295,6 +295,10 @@ int32_t PIOS_COM_ChangeBaud(uint32_t com_id, uint32_t baud)
 
     return 0;
 }
+void PIOS_COM_ChangeBaud_VoidWrapper(uint32_t com_id, uint32_t baud)
+{
+    PIOS_COM_ChangeBaud(com_id, baud);
+}
 
 int32_t PIOS_COM_ChangeConfig(uint32_t com_id, enum PIOS_COM_Word_Length word_len, enum PIOS_COM_Parity parity, enum PIOS_COM_StopBits stop_bits, uint32_t baud_rate)
 {
@@ -336,6 +340,10 @@ int32_t PIOS_COM_SetCtrlLine(uint32_t com_id, uint32_t mask, uint32_t state)
     }
 
     return 0;
+}
+void PIOS_COM_SetCtrlLine_VoidWrapper(uint32_t com_id, uint32_t mask, uint32_t state)
+{
+    PIOS_COM_SetCtrlLine(com_id, mask, state);
 }
 
 /**
@@ -827,12 +835,12 @@ void PIOS_COM_LinkComPair(uint32_t com1_id, uint32_t com2_id, bool link_ctrl_lin
     PIOS_COM_ASYNC_RegisterRxCallback(com2_id, PIOS_COM_LinkComPairRxCallback, com1_id);
     // Optionally link the control like and baudrate changes between the two.
     if (link_ctrl_line) {
-        PIOS_COM_RegisterCtrlLineCallback(com1_id, (pios_com_callback_ctrl_line)PIOS_COM_SetCtrlLine, com2_id);
-        PIOS_COM_RegisterCtrlLineCallback(com2_id, (pios_com_callback_ctrl_line)PIOS_COM_SetCtrlLine, com1_id);
+        PIOS_COM_RegisterCtrlLineCallback(com1_id, (pios_com_callback_ctrl_line)PIOS_COM_SetCtrlLine_VoidWrapper, com2_id);
+        PIOS_COM_RegisterCtrlLineCallback(com2_id, (pios_com_callback_ctrl_line)PIOS_COM_SetCtrlLine_VoidWrapper, com1_id);
     }
     if (link_baud_rate) {
-        PIOS_COM_RegisterBaudRateCallback(com1_id, (pios_com_callback_baud_rate)PIOS_COM_ChangeBaud, com2_id);
-        PIOS_COM_RegisterBaudRateCallback(com2_id, (pios_com_callback_baud_rate)PIOS_COM_ChangeBaud, com1_id);
+        PIOS_COM_RegisterBaudRateCallback(com1_id, (pios_com_callback_baud_rate)PIOS_COM_ChangeBaud_VoidWrapper, com2_id);
+        PIOS_COM_RegisterBaudRateCallback(com2_id, (pios_com_callback_baud_rate)PIOS_COM_ChangeBaud_VoidWrapper, com1_id);
     }
 }
 

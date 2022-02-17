@@ -36,8 +36,8 @@
 #include <pios_spi_priv.h>
 
 struct pios_video_cfg {
-    const struct pios_spi_cfg  mask;
-    const struct pios_spi_cfg  level;
+    const struct pios_spi_cfg  *mask;
+    const struct pios_spi_cfg  *level;
 
     const struct pios_exti_cfg *hsync;
     const struct pios_exti_cfg *vsync;

@@ -283,7 +283,7 @@ SystemAlarmsAlarmOptions AlarmsGetHighestSeverity()
 }
 
 
-static const char *const systemalarms_severity_names[] = {
+__attribute__((unused)) static const char *const systemalarms_severity_names[] = {
     [SYSTEMALARMS_ALARM_UNINITIALISED] = "UNINITIALISED",
     [SYSTEMALARMS_ALARM_OK]       = "OK",
     [SYSTEMALARMS_ALARM_WARNING]  = "WARNING",

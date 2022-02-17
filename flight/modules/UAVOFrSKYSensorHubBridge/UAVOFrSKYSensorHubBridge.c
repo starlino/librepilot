@@ -610,7 +610,7 @@ static uint16_t frsky_pack_fuel(
 {
     uint8_t index  = 0;
 
-    uint16_t level = lroundf(abs(fuel_level * 100));
+    uint16_t level = lroundf(fabsf(fuel_level * 100));
 
     // Use fixed levels here because documentation says so.
     if (level > 94) {

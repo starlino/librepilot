@@ -112,7 +112,7 @@ static void default_cpu_handler(void)
 }
 
 /** Prototype for optional exception vector handlers */
-#define HANDLER(_name) extern vector _name __attribute__((weak, alias("default_cpu_handler")))
+#define HANDLER(_name) extern vector _name __attribute__((weak, alias("default_cpu_handler"), noreturn))
 
 /* standard CMSIS vector names */
 HANDLER(NMI_Handler);

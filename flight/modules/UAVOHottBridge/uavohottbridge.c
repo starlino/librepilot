@@ -807,7 +807,7 @@ void update_telemetrydata()
         txt_armstate = txt_unknown;
     }
 
-    snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%8s", txt_flightmode, txt_armstate);
+    snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%7s", txt_flightmode, txt_armstate);
 }
 
 /**
