@@ -191,7 +191,7 @@ function download_and_verify
 		fi
 	elif [ -n "${tool_md5:-}" ]
 	then
-		if [[ "$tool_md5"* != "$(cd "$downloads_dir" && md5sum "$downloaded_file")" ]]
+		if [[ "${tool_md5:-}  -" != "$(cd "$downloads_dir" && md5sum <"$downloaded_file")" ]]
 		then
 			mv -f "$downloaded_file"{,.rej} && \
 			verified=false
