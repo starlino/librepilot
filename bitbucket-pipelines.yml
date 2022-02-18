@@ -6,6 +6,6 @@ pipelines:
           - apt-get update -q
           - DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential qtbase5-dev git curl libc6-i386 python2 python2.7-dev libqt5svg5-dev qt5-qmltooling-plugins libqt5webview5-dev qtscript5-dev libqt5serialport5-dev qtmultimedia5-dev libusb-1.0-0-dev libudev-dev pkg-config libsdl-dev libosgearth-dev qttools5-dev-tools
           - make build_sdk_install
-          - make all_flight
+          - make all_flight --jobs=6
           - make fw_resource
-          - make gcs
+          - make gcs --jobs=6
