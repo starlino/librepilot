@@ -92,6 +92,7 @@ TOOLS_URL := http://librepilot.github.io/tools
 
 QT_SHORT_VERSION := 5.9
 QT_VERSION := 5.9.0
+QT_FOLDER := archive
 
 OSG_VERSION := 3.5.5
 OSGEARTH_VERSION := 2.8
@@ -99,8 +100,8 @@ OSGEARTH_VERSION := 2.8
 ifeq ($(UNAME), Linux)
     ifeq ($(ARCH), x86_64)
         QT_SDK_ARCH    := gcc_64
-        QT_SDK_URL     := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-linux-x64-$(QT_VERSION).run
-        QT_SDK_MD5_URL := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
+        QT_SDK_URL     := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-linux-x64-$(QT_VERSION).run
+        QT_SDK_MD5_URL := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
         OSG_URL        := $(TOOLS_URL)/osg-$(OSG_VERSION)-linux-x64.tar.gz
         OSGEARTH_URL   := $(TOOLS_URL)/osgearth-$(OSGEARTH_VERSION)-linux-x64.tar.gz
     else
@@ -110,8 +111,8 @@ ifeq ($(UNAME), Linux)
     DOXYGEN_URL    := $(TOOLS_URL)/doxygen-1.8.3.1.src.tar.gz
 else ifeq ($(UNAME), Darwin)
     QT_SDK_ARCH    := clang_64
-    QT_SDK_URL     := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-mac-x64-$(QT_VERSION).dmg
-    QT_SDK_MD5_URL := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
+    QT_SDK_URL     := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-mac-x64-$(QT_VERSION).dmg
+    QT_SDK_MD5_URL := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
     QT_SDK_MOUNT_DIR        := /Volumes/qt-opensource-mac-x64-$(QT_VERSION)
     QT_SDK_MAINTENANCE_TOOL := /Volumes/qt-opensource-mac-x64-$(QT_VERSION)/qt-opensource-mac-x64-$(QT_VERSION).app/Contents/MacOS/qt-opensource-mac-x64-$(QT_VERSION)
     UNCRUSTIFY_URL := $(TOOLS_URL)/uncrustify-0.60.tar.gz
@@ -120,8 +121,8 @@ else ifeq ($(UNAME), Darwin)
     OSGEARTH_URL   := $(TOOLS_URL)/osgearth-$(OSGEARTH_VERSION)-clang_64.tar.gz
 else ifeq ($(UNAME), Windows)
     QT_SDK_ARCH    := mingw53_32
-    QT_SDK_URL     := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-windows-x86-mingw530-$(QT_VERSION).exe
-    QT_SDK_MD5_URL := http://download.qt.io/official_releases/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
+    QT_SDK_URL     := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/qt-opensource-windows-x86-mingw530-$(QT_VERSION).exe
+    QT_SDK_MD5_URL := http://download.qt.io/$(QT_FOLDER)/qt/$(QT_SHORT_VERSION)/$(QT_VERSION)/md5sums.txt
     NSIS_URL       := $(TOOLS_URL)/nsis-2.46-unicode.tar.bz2
     MESAWIN_URL    := $(TOOLS_URL)/mesawin.tar.gz
     UNCRUSTIFY_URL := $(TOOLS_URL)/uncrustify-0.60-windows.tar.bz2
