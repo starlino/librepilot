@@ -210,7 +210,7 @@ extern uint32_t pios_i2c_id;
 // Receiver FlySky IBus input
 // -------------------------
 #define PIOS_IBUS_MAX_DEVS           1
-#define PIOS_IBUS_NUM_INPUTS         10
+#define PIOS_IBUS_NUM_INPUTS         14
 
 // -------------------------
 // Servo outputs
