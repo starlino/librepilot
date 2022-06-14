@@ -260,6 +260,7 @@ static void pathPlannerTask()
     switch (pathAction.Command) {
     case PATHACTION_COMMAND_ONNOTCONDITIONNEXTWAYPOINT:
         endCondition = !endCondition;
+    // fall through
     case PATHACTION_COMMAND_ONCONDITIONNEXTWAYPOINT:
         if (endCondition) {
             setWaypoint(waypointActive.Index + 1);
@@ -267,6 +268,7 @@ static void pathPlannerTask()
         break;
     case PATHACTION_COMMAND_ONNOTCONDITIONJUMPWAYPOINT:
         endCondition = !endCondition;
+    // fall through
     case PATHACTION_COMMAND_ONCONDITIONJUMPWAYPOINT:
         if (endCondition) {
             if (pathAction.JumpDestination < 0) {
@@ -312,7 +314,7 @@ void updatePathDesired()
     pathDesired.End.East  = waypoint.Position.East;
     pathDesired.End.Down  = waypoint.Position.Down;
     pathDesired.EndingVelocity    = waypoint.Velocity;
-    pathDesired.Mode = pathAction.Mode;
+    pathDesired.Mode = (PathDesiredModeOptions)pathAction.Mode;
     pathDesired.ModeParameters[0] = pathAction.ModeParameters[0];
     pathDesired.ModeParameters[1] = pathAction.ModeParameters[1];
     pathDesired.ModeParameters[2] = pathAction.ModeParameters[2];
@@ -677,8 +679,8 @@ static uint8_t conditionPointingTowardsNext()
 
     PositionStateData positionState;
     PositionStateGet(&positionState);
-	
-	// check if current position exactly matches nextWaipoint (in 2D space) 
+
+    // check if current position exactly matches nextWaipoint (in 2D space)
     if ((fabsf(nextWaypoint.Position.North - positionState.North) < 1e-6f) && (fabsf(nextWaypoint.Position.East - positionState.East) < 1e-6f)) {
         return true;
     }

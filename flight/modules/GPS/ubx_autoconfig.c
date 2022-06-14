@@ -446,7 +446,7 @@ static void configure(uint16_t *bytes_to_send)
             // Skip and fall through to next step
             status->lastConfigSent++;
         }
-
+    // fall through
     case LAST_CONFIG_SENT_START + 3:
         if (status->currentSettings.enableGLONASS || status->currentSettings.enableGPS) {
             config_gnss(bytes_to_send);
@@ -456,7 +456,7 @@ static void configure(uint16_t *bytes_to_send)
             status->lastConfigSent++;
         }
     // in the else case we must fall through because we must send something each time because successful send is tested externally
-
+    // fall through
     case LAST_CONFIG_SENT_START + 4:
         config_sbas(bytes_to_send);
         break;
@@ -628,6 +628,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // we can do that if we choose because we haven't sent any data in this state
     // break;
 
+    // fall through
     case INIT_STEP_SEND_MON_VER:
         build_request((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_MON, UBX_ID_MON_VER, bytes_to_send);
         // keep timeouts running properly, we (will have) just sent a packet that generates a reply
@@ -649,6 +650,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // break;
 
     // if here, we have just verified that the baud rates are in sync (again)
+    // fall through
     case INIT_STEP_RESET_GPS:
         // make sure we don't change the baud rate too soon and garble the packet being sent
         // even after pios says the buffer is empty, the serial port buffer still has data in it
@@ -716,6 +718,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // break;
 
     // Revo and GPS are both at 9600 baud
+    // fall through
     case INIT_STEP_GPS_BAUD:
         // https://www.u-blox.com/images/downloads/Product_Docs/u-bloxM8_ReceiverDescriptionProtocolSpec_%28UBX-13003221%29_Public.pdf
         // It is possible to change the current communications port settings using a UBX-CFG-CFG message. This could
@@ -847,6 +850,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // break;
 
     // the autoconfig has completed normally
+    // fall through
     case INIT_STEP_PRE_DONE:
 #if defined(AUTOBAUD_CONFIGURE_STORE_AND_DISABLE)
         // determine if we need to disable autoconfig via the autoconfig==AUTOBAUDCONFIGSTOREANDDISABLE setting

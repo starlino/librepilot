@@ -597,6 +597,7 @@ void HandleBatteryFailsafe(uint8_t *position, FlightModeSettingsData *modeSettin
             *position = modeSettings->BatteryFailsafeSwitchPositions.Critical;
             break;
         }
+    // fall through
     case BATTERYFAILSAFE_WARNING:
         if (modeSettings->BatteryFailsafeSwitchPositions.Warning != -1) {
             *position = modeSettings->BatteryFailsafeSwitchPositions.Warning;
@@ -646,37 +647,38 @@ static uint8_t isAssistedFlightMode(uint8_t position, uint8_t flightMode, Flight
     case STABILIZATIONSETTINGS_FLIGHTMODEASSISTMAP_GPSASSIST:
     {
         // default to cruise control.
-        FlightModeSettingsStabilization1SettingsOptions thrustMode = FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_CRUISECONTROL;
+        typedef FlightModeSettingsStabilization1SettingsOptions _tm;
+        _tm thrustMode = FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_CRUISECONTROL;
 
         switch (flightMode) {
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED1:
-            thrustMode = modeSettings->Stabilization1Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization1Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED2:
-            thrustMode = modeSettings->Stabilization2Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization2Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED3:
-            thrustMode = modeSettings->Stabilization3Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization3Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED4:
-            thrustMode = modeSettings->Stabilization4Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization4Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED5:
-            thrustMode = modeSettings->Stabilization5Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization5Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_STABILIZED6:
-            thrustMode = modeSettings->Stabilization6Settings.Thrust;
+            thrustMode = (_tm)modeSettings->Stabilization6Settings.Thrust;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_POSITIONHOLD:
         case FLIGHTSTATUS_FLIGHTMODE_VELOCITYROAM:
             // we hard code the "GPS Assisted" PostionHold/Roam to use alt-vario which
             // is a more appropriate throttle mode.  "GPSAssist" adds braking
             // and a better throttle management to the standard Position Hold.
-            thrustMode = FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_ALTITUDEVARIO;
+            thrustMode = (_tm)FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_ALTITUDEVARIO;
             break;
         case FLIGHTSTATUS_FLIGHTMODE_LAND:
         case FLIGHTSTATUS_FLIGHTMODE_AUTOTAKEOFF:
-            thrustMode = FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_CRUISECONTROL;
+            thrustMode = (_tm)FLIGHTMODESETTINGS_STABILIZATION1SETTINGS_CRUISECONTROL;
             break;
 
             // other modes will use cruisecontrol as default

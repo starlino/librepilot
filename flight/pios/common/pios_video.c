@@ -292,48 +292,48 @@ void PIOS_Video_Init(const struct pios_video_cfg *cfg)
     GPIO_Init(GPIOC, &initStruct);
 
     /* SPI3 - MASKBUFFER */
-    GPIO_Init(cfg->mask.sclk.gpio, (GPIO_InitTypeDef *)&(cfg->mask.sclk.init));
-    GPIO_Init(cfg->mask.miso.gpio, (GPIO_InitTypeDef *)&(cfg->mask.miso.init));
+    GPIO_Init(cfg->mask->sclk.gpio, (GPIO_InitTypeDef *)&(cfg->mask->sclk.init));
+    GPIO_Init(cfg->mask->miso.gpio, (GPIO_InitTypeDef *)&(cfg->mask->miso.init));
 
     /* SPI1 SLAVE FRAMEBUFFER */
-    GPIO_Init(cfg->level.sclk.gpio, (GPIO_InitTypeDef *)&(cfg->level.sclk.init));
-    GPIO_Init(cfg->level.miso.gpio, (GPIO_InitTypeDef *)&(cfg->level.miso.init));
+    GPIO_Init(cfg->level->sclk.gpio, (GPIO_InitTypeDef *)&(cfg->level->sclk.init));
+    GPIO_Init(cfg->level->miso.gpio, (GPIO_InitTypeDef *)&(cfg->level->miso.init));
 
-    if (cfg->mask.remap) {
-        GPIO_PinAFConfig(cfg->mask.sclk.gpio,
-                         __builtin_ctz(cfg->mask.sclk.init.GPIO_Pin),
-                         cfg->mask.remap);
-        GPIO_PinAFConfig(cfg->mask.miso.gpio,
-                         __builtin_ctz(cfg->mask.miso.init.GPIO_Pin),
-                         cfg->mask.remap);
+    if (cfg->mask->remap) {
+        GPIO_PinAFConfig(cfg->mask->sclk.gpio,
+                         __builtin_ctz(cfg->mask->sclk.init.GPIO_Pin),
+                         cfg->mask->remap);
+        GPIO_PinAFConfig(cfg->mask->miso.gpio,
+                         __builtin_ctz(cfg->mask->miso.init.GPIO_Pin),
+                         cfg->mask->remap);
     }
-    if (cfg->level.remap) {
-        GPIO_PinAFConfig(cfg->level.sclk.gpio,
-                         __builtin_ctz(cfg->level.sclk.init.GPIO_Pin),
-                         cfg->level.remap);
-        GPIO_PinAFConfig(cfg->level.miso.gpio,
-                         __builtin_ctz(cfg->level.miso.init.GPIO_Pin),
-                         cfg->level.remap);
+    if (cfg->level->remap) {
+        GPIO_PinAFConfig(cfg->level->sclk.gpio,
+                         __builtin_ctz(cfg->level->sclk.init.GPIO_Pin),
+                         cfg->level->remap);
+        GPIO_PinAFConfig(cfg->level->miso.gpio,
+                         __builtin_ctz(cfg->level->miso.init.GPIO_Pin),
+                         cfg->level->remap);
     }
 
     /* Initialize the SPI block */
-    SPI_Init(cfg->level.regs, (SPI_InitTypeDef *)&(cfg->level.init));
-    SPI_Init(cfg->mask.regs, (SPI_InitTypeDef *)&(cfg->mask.init));
+    SPI_Init(cfg->level->regs, (SPI_InitTypeDef *)&(cfg->level->init));
+    SPI_Init(cfg->mask->regs, (SPI_InitTypeDef *)&(cfg->mask->init));
 
     /* Enable SPI */
-    SPI_Cmd(cfg->level.regs, ENABLE);
-    SPI_Cmd(cfg->mask.regs, ENABLE);
+    SPI_Cmd(cfg->level->regs, ENABLE);
+    SPI_Cmd(cfg->mask->regs, ENABLE);
 
     /* Configure DMA for SPI Tx SLAVE Maskbuffer */
-    DMA_Cmd(cfg->mask.dma.tx.channel, DISABLE);
-    DMA_Init(cfg->mask.dma.tx.channel, (DMA_InitTypeDef *)&(cfg->mask.dma.tx.init));
+    DMA_Cmd(cfg->mask->dma.tx.channel, DISABLE);
+    DMA_Init(cfg->mask->dma.tx.channel, (DMA_InitTypeDef *)&(cfg->mask->dma.tx.init));
 
     /* Configure DMA for SPI Tx SLAVE Framebuffer*/
-    DMA_Cmd(cfg->level.dma.tx.channel, DISABLE);
-    DMA_Init(cfg->level.dma.tx.channel, (DMA_InitTypeDef *)&(cfg->level.dma.tx.init));
+    DMA_Cmd(cfg->level->dma.tx.channel, DISABLE);
+    DMA_Init(cfg->level->dma.tx.channel, (DMA_InitTypeDef *)&(cfg->level->dma.tx.init));
 
     /* Trigger interrupt when for half conversions too to indicate double buffer */
-    DMA_ITConfig(cfg->level.dma.tx.channel, DMA_IT_TC, ENABLE);
+    DMA_ITConfig(cfg->level->dma.tx.channel, DMA_IT_TC, ENABLE);
 
     /* Configure and clear buffers */
     draw_buffer_level = buffer0_level;
@@ -347,16 +347,16 @@ void PIOS_Video_Init(const struct pios_video_cfg *cfg)
 
     /* Configure DMA interrupt */
 
-    NVIC_Init(&cfg->level.dma.irq.init);
+    NVIC_Init(&cfg->level->dma.irq.init);
 
     /* Enable SPI interrupts to DMA */
-    SPI_I2S_DMACmd(cfg->mask.regs, SPI_I2S_DMAReq_Tx, ENABLE);
-    SPI_I2S_DMACmd(cfg->level.regs, SPI_I2S_DMAReq_Tx, ENABLE);
+    SPI_I2S_DMACmd(cfg->mask->regs, SPI_I2S_DMAReq_Tx, ENABLE);
+    SPI_I2S_DMACmd(cfg->level->regs, SPI_I2S_DMAReq_Tx, ENABLE);
 
     mask_dma    = DMA1;
     main_dma    = DMA2;
-    main_stream = cfg->level.dma.tx.channel;
-    mask_stream = cfg->mask.dma.tx.channel;
+    main_stream = cfg->level->dma.tx.channel;
+    mask_stream = cfg->mask->dma.tx.channel;
     /* Configure the Video Line interrupt */
     PIOS_EXTI_Init(cfg->hsync);
     PIOS_EXTI_Init(cfg->vsync);
@@ -377,26 +377,26 @@ static void prepare_line(uint32_t line_num)
 
         dev_cfg->pixel_timer.timer->CNT = dc;
 
-        DMA_ClearFlag(dev_cfg->mask.dma.tx.channel, DMA_FLAG_TCIF7 | DMA_FLAG_HTIF7 | DMA_FLAG_FEIF7 | DMA_FLAG_TEIF7);
-        DMA_ClearFlag(dev_cfg->level.dma.tx.channel, DMA_FLAG_FEIF5 | DMA_FLAG_TEIF5);
+        DMA_ClearFlag(dev_cfg->mask->dma.tx.channel, DMA_FLAG_TCIF7 | DMA_FLAG_HTIF7 | DMA_FLAG_FEIF7 | DMA_FLAG_TEIF7);
+        DMA_ClearFlag(dev_cfg->level->dma.tx.channel, DMA_FLAG_FEIF5 | DMA_FLAG_TEIF5);
 
         // Load new line
-        DMA_MemoryTargetConfig(dev_cfg->level.dma.tx.channel, (uint32_t)&disp_buffer_level[buf_offset], DMA_Memory_0);
-        DMA_MemoryTargetConfig(dev_cfg->mask.dma.tx.channel, (uint32_t)&disp_buffer_mask[buf_offset], DMA_Memory_0);
+        DMA_MemoryTargetConfig(dev_cfg->level->dma.tx.channel, (uint32_t)&disp_buffer_level[buf_offset], DMA_Memory_0);
+        DMA_MemoryTargetConfig(dev_cfg->mask->dma.tx.channel, (uint32_t)&disp_buffer_mask[buf_offset], DMA_Memory_0);
 
         // Enable DMA, Slave first
-        DMA_SetCurrDataCounter(dev_cfg->level.dma.tx.channel, BUFFER_LINE_LENGTH);
-        DMA_SetCurrDataCounter(dev_cfg->mask.dma.tx.channel, BUFFER_LINE_LENGTH);
+        DMA_SetCurrDataCounter(dev_cfg->level->dma.tx.channel, BUFFER_LINE_LENGTH);
+        DMA_SetCurrDataCounter(dev_cfg->mask->dma.tx.channel, BUFFER_LINE_LENGTH);
 
-        SPI_Cmd(dev_cfg->level.regs, ENABLE);
-        SPI_Cmd(dev_cfg->mask.regs, ENABLE);
+        SPI_Cmd(dev_cfg->level->regs, ENABLE);
+        SPI_Cmd(dev_cfg->mask->regs, ENABLE);
 
         /* Enable SPI interrupts to DMA */
-        SPI_I2S_DMACmd(dev_cfg->mask.regs, SPI_I2S_DMAReq_Tx, ENABLE);
-        SPI_I2S_DMACmd(dev_cfg->level.regs, SPI_I2S_DMAReq_Tx, ENABLE);
+        SPI_I2S_DMACmd(dev_cfg->mask->regs, SPI_I2S_DMAReq_Tx, ENABLE);
+        SPI_I2S_DMACmd(dev_cfg->level->regs, SPI_I2S_DMAReq_Tx, ENABLE);
 
-        DMA_Cmd(dev_cfg->level.dma.tx.channel, ENABLE);
-        DMA_Cmd(dev_cfg->mask.dma.tx.channel, ENABLE);
+        DMA_Cmd(dev_cfg->level->dma.tx.channel, ENABLE);
+        DMA_Cmd(dev_cfg->mask->dma.tx.channel, ENABLE);
     }
     reset_hsync_timers();
 }
@@ -417,27 +417,27 @@ static void flush_spi()
 
     // Can't flush if clock not running
     while ((dev_cfg->pixel_timer.timer->CR1 & 0x0001) && (!level_stopped | !mask_stopped)) {
-        level_empty |= SPI_I2S_GetFlagStatus(dev_cfg->level.regs, SPI_I2S_FLAG_TXE) == SET;
-        mask_empty  |= SPI_I2S_GetFlagStatus(dev_cfg->mask.regs, SPI_I2S_FLAG_TXE) == SET;
+        level_empty |= SPI_I2S_GetFlagStatus(dev_cfg->level->regs, SPI_I2S_FLAG_TXE) == SET;
+        mask_empty  |= SPI_I2S_GetFlagStatus(dev_cfg->mask->regs, SPI_I2S_FLAG_TXE) == SET;
 
-        if (level_empty && !level_stopped) { // && SPI_I2S_GetFlagStatus(dev_cfg->level.regs ,SPI_I2S_FLAG_BSY) == RESET) {
-            SPI_Cmd(dev_cfg->level.regs, DISABLE);
+        if (level_empty && !level_stopped) { // && SPI_I2S_GetFlagStatus(dev_cfg->level->regs ,SPI_I2S_FLAG_BSY) == RESET) {
+            SPI_Cmd(dev_cfg->level->regs, DISABLE);
             level_stopped = true;
         }
 
-        if (mask_empty && !mask_stopped) { // && SPI_I2S_GetFlagStatus(dev_cfg->mask.regs ,SPI_I2S_FLAG_BSY) == RESET) {
-            SPI_Cmd(dev_cfg->mask.regs, DISABLE);
+        if (mask_empty && !mask_stopped) { // && SPI_I2S_GetFlagStatus(dev_cfg->mask->regs ,SPI_I2S_FLAG_BSY) == RESET) {
+            SPI_Cmd(dev_cfg->mask->regs, DISABLE);
             mask_stopped = true;
         }
     }
     /*
        uint32_t i = 0;
-       while(SPI_I2S_GetFlagStatus(dev_cfg->level.regs ,SPI_I2S_FLAG_TXE) == RESET && i < 30000) i++;
-       while(SPI_I2S_GetFlagStatus(dev_cfg->mask.regs ,SPI_I2S_FLAG_TXE) == RESET && i < 30000) i++;
-       while(SPI_I2S_GetFlagStatus(dev_cfg->level.regs ,SPI_I2S_FLAG_BSY) == SET && i < 30000) i++;
-       while(SPI_I2S_GetFlagStatus(dev_cfg->mask.regs ,SPI_I2S_FLAG_BSY) == SET && i < 30000) i++;*/
-    SPI_Cmd(dev_cfg->mask.regs, DISABLE);
-    SPI_Cmd(dev_cfg->level.regs, DISABLE);
+       while(SPI_I2S_GetFlagStatus(dev_cfg->level->regs ,SPI_I2S_FLAG_TXE) == RESET && i < 30000) i++;
+       while(SPI_I2S_GetFlagStatus(dev_cfg->mask->regs ,SPI_I2S_FLAG_TXE) == RESET && i < 30000) i++;
+       while(SPI_I2S_GetFlagStatus(dev_cfg->level->regs ,SPI_I2S_FLAG_BSY) == SET && i < 30000) i++;
+       while(SPI_I2S_GetFlagStatus(dev_cfg->mask->regs ,SPI_I2S_FLAG_BSY) == SET && i < 30000) i++;*/
+    SPI_Cmd(dev_cfg->mask->regs, DISABLE);
+    SPI_Cmd(dev_cfg->level->regs, DISABLE);
 }
 
 /**
@@ -446,8 +446,8 @@ static void flush_spi()
 void PIOS_VIDEO_DMA_Handler(void)
 {
     // Handle flags from stream channel
-    if (DMA_GetFlagStatus(dev_cfg->level.dma.tx.channel, DMA_FLAG_TCIF5)) { // whole double buffer filled
-        DMA_ClearFlag(dev_cfg->level.dma.tx.channel, DMA_FLAG_TCIF5);
+    if (DMA_GetFlagStatus(dev_cfg->level->dma.tx.channel, DMA_FLAG_TCIF5)) { // whole double buffer filled
+        DMA_ClearFlag(dev_cfg->level->dma.tx.channel, DMA_FLAG_TCIF5);
         if (gActiveLine < GRAPHICS_HEIGHT) {
             flush_spi();
             stop_hsync_timers();
@@ -461,12 +461,12 @@ void PIOS_VIDEO_DMA_Handler(void)
             stop_hsync_timers();
 
             // STOP DMA, master first
-            DMA_Cmd(dev_cfg->mask.dma.tx.channel, DISABLE);
-            DMA_Cmd(dev_cfg->level.dma.tx.channel, DISABLE);
+            DMA_Cmd(dev_cfg->mask->dma.tx.channel, DISABLE);
+            DMA_Cmd(dev_cfg->level->dma.tx.channel, DISABLE);
         }
         gActiveLine++;
-    } else if (DMA_GetFlagStatus(dev_cfg->level.dma.tx.channel, DMA_FLAG_HTIF5)) {
-        DMA_ClearFlag(dev_cfg->level.dma.tx.channel, DMA_FLAG_HTIF5);
+    } else if (DMA_GetFlagStatus(dev_cfg->level->dma.tx.channel, DMA_FLAG_HTIF5)) {
+        DMA_ClearFlag(dev_cfg->level->dma.tx.channel, DMA_FLAG_HTIF5);
     } else {}
 }
 

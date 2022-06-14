@@ -607,154 +607,157 @@ static const struct pios_exti_cfg pios_exti_vsync_cfg __exti_config = {
     },
 };
 
+static const struct pios_spi_cfg mask = {
+    .regs  = SPI3,
+    .remap = GPIO_AF_SPI3,
+    .init  = {
+        .SPI_Mode              = SPI_Mode_Slave,
+        .SPI_Direction         = SPI_Direction_1Line_Tx,
+        .SPI_DataSize          = SPI_DataSize_8b,
+        .SPI_NSS                                   = SPI_NSS_Soft,
+        .SPI_FirstBit          = SPI_FirstBit_MSB,
+        .SPI_CRCPolynomial     = 7,
+        .SPI_CPOL              = SPI_CPOL_Low,
+        .SPI_CPHA              = SPI_CPHA_2Edge,
+        .SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2,
+    },
+    .use_crc = false,
+    .dma     = {
+        .irq                                       = {
+            // Note this is the stream ID that triggers interrupts (in this case RX)
+            .flags = (DMA_IT_TCIF7),
+            .init  = {
+                .NVIC_IRQChannel    = DMA1_Stream7_IRQn,
+                .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+                .NVIC_IRQChannelSubPriority        = 0,
+                .NVIC_IRQChannelCmd = ENABLE,
+            },
+        },
+        /*.rx = {},*/
+        .tx                                        = {
+            .channel = DMA1_Stream7,
+            .init    = {
+                .DMA_Channel            = DMA_Channel_0,
+                .DMA_PeripheralBaseAddr = (uint32_t)&(SPI3->DR),
+                .DMA_DIR                = DMA_DIR_MemoryToPeripheral,
+                .DMA_BufferSize         = BUFFER_LINE_LENGTH,
+                .DMA_PeripheralInc      = DMA_PeripheralInc_Disable,
+                .DMA_MemoryInc          = DMA_MemoryInc_Enable,
+                .DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte,
+                .DMA_MemoryDataSize     = DMA_MemoryDataSize_Word,
+                .DMA_Mode               = DMA_Mode_Normal,
+                .DMA_Priority           = DMA_Priority_VeryHigh,
+                .DMA_FIFOMode           = DMA_FIFOMode_Enable,
+                .DMA_FIFOThreshold      = DMA_FIFOThreshold_Full,
+                .DMA_MemoryBurst        = DMA_MemoryBurst_INC4,
+                .DMA_PeripheralBurst    = DMA_PeripheralBurst_Single,
+            },
+        },
+    },
+    .sclk                                          = {
+        .gpio = GPIOC,
+        .init = {
+            .GPIO_Pin   = GPIO_Pin_10,
+            .GPIO_Speed = GPIO_Speed_100MHz,
+            .GPIO_Mode  = GPIO_Mode_AF,
+            .GPIO_OType = GPIO_OType_PP,
+            .GPIO_PuPd  = GPIO_PuPd_NOPULL
+        },
+    },
+    .miso                                          = {
+        .gpio = GPIOC,
+        .init = {
+            .GPIO_Pin   = GPIO_Pin_11,
+            .GPIO_Speed = GPIO_Speed_50MHz,
+            .GPIO_Mode  = GPIO_Mode_AF,
+            .GPIO_OType = GPIO_OType_PP,
+            .GPIO_PuPd  = GPIO_PuPd_NOPULL
+        },
+    },
+    /*.mosi = {},*/
+    .slave_count                                   = 1,
+};
+
+static const struct pios_spi_cfg level = {
+    .regs  = SPI1,
+    .remap = GPIO_AF_SPI1,
+    .init  = {
+        .SPI_Mode              = SPI_Mode_Slave,
+        .SPI_Direction         = SPI_Direction_1Line_Tx,
+        .SPI_DataSize          = SPI_DataSize_8b,
+        .SPI_NSS                                   = SPI_NSS_Soft,
+        .SPI_FirstBit          = SPI_FirstBit_MSB,
+        .SPI_CRCPolynomial     = 7,
+        .SPI_CPOL              = SPI_CPOL_Low,
+        .SPI_CPHA              = SPI_CPHA_2Edge,
+        .SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2,
+    },
+    .use_crc = false,
+    .dma     = {
+        .irq                                       = {
+            .flags = (DMA_IT_TCIF5),
+            .init  = {
+                .NVIC_IRQChannel    = DMA2_Stream5_IRQn,
+                .NVIC_IRQChannelPreemptionPriority = 0,
+                .NVIC_IRQChannelSubPriority        = 0,
+                .NVIC_IRQChannelCmd = ENABLE,
+            },
+        },
+        /*.rx = {},*/
+        .tx                                        = {
+            .channel = DMA2_Stream5,
+            .init    = {
+                .DMA_Channel            = DMA_Channel_3,
+                .DMA_PeripheralBaseAddr = (uint32_t)&(SPI1->DR),
+                .DMA_DIR                = DMA_DIR_MemoryToPeripheral,
+                .DMA_BufferSize         = BUFFER_LINE_LENGTH,
+                .DMA_PeripheralInc      = DMA_PeripheralInc_Disable,
+                .DMA_MemoryInc          = DMA_MemoryInc_Enable,
+                .DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte,
+                .DMA_MemoryDataSize     = DMA_MemoryDataSize_Word,
+                .DMA_Mode               = DMA_Mode_Normal,
+                .DMA_Priority           = DMA_Priority_VeryHigh,
+                .DMA_FIFOMode           = DMA_FIFOMode_Enable,
+                .DMA_FIFOThreshold      = DMA_FIFOThreshold_Full,
+                .DMA_MemoryBurst        = DMA_MemoryBurst_INC4,
+                .DMA_PeripheralBurst    = DMA_PeripheralBurst_Single,
+            },
+        },
+    },
+    .sclk                                          = {
+        .gpio = GPIOB,
+        .init = {
+            .GPIO_Pin   = GPIO_Pin_3,
+            .GPIO_Speed = GPIO_Speed_100MHz,
+            .GPIO_Mode  = GPIO_Mode_AF,
+            .GPIO_OType = GPIO_OType_PP,
+            .GPIO_PuPd  = GPIO_PuPd_UP
+        },
+    },
+    .miso                                          = {
+        .gpio = GPIOB,
+        .init = {
+            .GPIO_Pin   = GPIO_Pin_4,
+            .GPIO_Speed = GPIO_Speed_50MHz,
+            .GPIO_Mode  = GPIO_Mode_AF,
+            .GPIO_OType = GPIO_OType_PP,
+            .GPIO_PuPd  = GPIO_PuPd_UP
+        },
+    },
+    /*.mosi = {},*/
+    .slave_count                                   = 1,
+};
 
 static const struct pios_video_cfg pios_video_cfg = {
-    .mask                                              = {
-        .regs  = SPI3,
-        .remap = GPIO_AF_SPI3,
-        .init  = {
-            .SPI_Mode              = SPI_Mode_Slave,
-            .SPI_Direction         = SPI_Direction_1Line_Tx,
-            .SPI_DataSize          = SPI_DataSize_8b,
-            .SPI_NSS                                   = SPI_NSS_Soft,
-            .SPI_FirstBit          = SPI_FirstBit_MSB,
-            .SPI_CRCPolynomial     = 7,
-            .SPI_CPOL              = SPI_CPOL_Low,
-            .SPI_CPHA              = SPI_CPHA_2Edge,
-            .SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2,
-        },
-        .use_crc = false,
-        .dma     = {
-            .irq                                       = {
-                // Note this is the stream ID that triggers interrupts (in this case RX)
-                .flags = (DMA_IT_TCIF7),
-                .init  = {
-                    .NVIC_IRQChannel    = DMA1_Stream7_IRQn,
-                    .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
-                    .NVIC_IRQChannelSubPriority        = 0,
-                    .NVIC_IRQChannelCmd = ENABLE,
-                },
-            },
-            /*.rx = {},*/
-            .tx                                        = {
-                .channel = DMA1_Stream7,
-                .init    = {
-                    .DMA_Channel            = DMA_Channel_0,
-                    .DMA_PeripheralBaseAddr = (uint32_t)&(SPI3->DR),
-                    .DMA_DIR                = DMA_DIR_MemoryToPeripheral,
-                    .DMA_BufferSize         = BUFFER_LINE_LENGTH,
-                    .DMA_PeripheralInc      = DMA_PeripheralInc_Disable,
-                    .DMA_MemoryInc          = DMA_MemoryInc_Enable,
-                    .DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte,
-                    .DMA_MemoryDataSize     = DMA_MemoryDataSize_Word,
-                    .DMA_Mode               = DMA_Mode_Normal,
-                    .DMA_Priority           = DMA_Priority_VeryHigh,
-                    .DMA_FIFOMode           = DMA_FIFOMode_Enable,
-                    .DMA_FIFOThreshold      = DMA_FIFOThreshold_Full,
-                    .DMA_MemoryBurst        = DMA_MemoryBurst_INC4,
-                    .DMA_PeripheralBurst    = DMA_PeripheralBurst_Single,
-                },
-            },
-        },
-        .sclk                                          = {
-            .gpio = GPIOC,
-            .init = {
-                .GPIO_Pin   = GPIO_Pin_10,
-                .GPIO_Speed = GPIO_Speed_100MHz,
-                .GPIO_Mode  = GPIO_Mode_AF,
-                .GPIO_OType = GPIO_OType_PP,
-                .GPIO_PuPd  = GPIO_PuPd_NOPULL
-            },
-        },
-        .miso                                          = {
-            .gpio = GPIOC,
-            .init = {
-                .GPIO_Pin   = GPIO_Pin_11,
-                .GPIO_Speed = GPIO_Speed_50MHz,
-                .GPIO_Mode  = GPIO_Mode_AF,
-                .GPIO_OType = GPIO_OType_PP,
-                .GPIO_PuPd  = GPIO_PuPd_NOPULL
-            },
-        },
-        /*.mosi = {},*/
-        .slave_count                                   = 1,
-    },
-    .level                                             = {
-        .regs  = SPI1,
-        .remap = GPIO_AF_SPI1,
-        .init  = {
-            .SPI_Mode              = SPI_Mode_Slave,
-            .SPI_Direction         = SPI_Direction_1Line_Tx,
-            .SPI_DataSize          = SPI_DataSize_8b,
-            .SPI_NSS                                   = SPI_NSS_Soft,
-            .SPI_FirstBit          = SPI_FirstBit_MSB,
-            .SPI_CRCPolynomial     = 7,
-            .SPI_CPOL              = SPI_CPOL_Low,
-            .SPI_CPHA              = SPI_CPHA_2Edge,
-            .SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2,
-        },
-        .use_crc = false,
-        .dma     = {
-            .irq                                       = {
-                .flags = (DMA_IT_TCIF5),
-                .init  = {
-                    .NVIC_IRQChannel    = DMA2_Stream5_IRQn,
-                    .NVIC_IRQChannelPreemptionPriority = 0,
-                    .NVIC_IRQChannelSubPriority        = 0,
-                    .NVIC_IRQChannelCmd = ENABLE,
-                },
-            },
-            /*.rx = {},*/
-            .tx                                        = {
-                .channel = DMA2_Stream5,
-                .init    = {
-                    .DMA_Channel            = DMA_Channel_3,
-                    .DMA_PeripheralBaseAddr = (uint32_t)&(SPI1->DR),
-                    .DMA_DIR                = DMA_DIR_MemoryToPeripheral,
-                    .DMA_BufferSize         = BUFFER_LINE_LENGTH,
-                    .DMA_PeripheralInc      = DMA_PeripheralInc_Disable,
-                    .DMA_MemoryInc          = DMA_MemoryInc_Enable,
-                    .DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte,
-                    .DMA_MemoryDataSize     = DMA_MemoryDataSize_Word,
-                    .DMA_Mode               = DMA_Mode_Normal,
-                    .DMA_Priority           = DMA_Priority_VeryHigh,
-                    .DMA_FIFOMode           = DMA_FIFOMode_Enable,
-                    .DMA_FIFOThreshold      = DMA_FIFOThreshold_Full,
-                    .DMA_MemoryBurst        = DMA_MemoryBurst_INC4,
-                    .DMA_PeripheralBurst    = DMA_PeripheralBurst_Single,
-                },
-            },
-        },
-        .sclk                                          = {
-            .gpio = GPIOB,
-            .init = {
-                .GPIO_Pin   = GPIO_Pin_3,
-                .GPIO_Speed = GPIO_Speed_100MHz,
-                .GPIO_Mode  = GPIO_Mode_AF,
-                .GPIO_OType = GPIO_OType_PP,
-                .GPIO_PuPd  = GPIO_PuPd_UP
-            },
-        },
-        .miso                                          = {
-            .gpio = GPIOB,
-            .init = {
-                .GPIO_Pin   = GPIO_Pin_4,
-                .GPIO_Speed = GPIO_Speed_50MHz,
-                .GPIO_Mode  = GPIO_Mode_AF,
-                .GPIO_OType = GPIO_OType_PP,
-                .GPIO_PuPd  = GPIO_PuPd_UP
-            },
-        },
-        /*.mosi = {},*/
-        .slave_count                                   = 1,
-    },
+    .mask  = &mask,
+    .level = &level,
 
     .hsync = &pios_exti_hsync_cfg,
     .vsync = &pios_exti_vsync_cfg,
 
-    .pixel_timer                                       = {
+    .pixel_timer            = {
         .timer = TIM4,
-        .timer_chan                                    = TIM_Channel_1,
+        .timer_chan         = TIM_Channel_1,
         .pin   = {
             .gpio = GPIOB,
             .init = {
@@ -764,13 +767,13 @@ static const struct pios_video_cfg pios_video_cfg = {
                 .GPIO_OType = GPIO_OType_PP,
                 .GPIO_PuPd  = GPIO_PuPd_UP
             },
-            .pin_source                                = GPIO_PinSource6,
+            .pin_source     = GPIO_PinSource6,
         },
-        .remap                                         = GPIO_AF_TIM4,
+        .remap              = GPIO_AF_TIM4,
     },
-    .hsync_capture                                     = {
+    .hsync_capture          = {
         .timer = TIM4,
-        .timer_chan                                    = TIM_Channel_2,
+        .timer_chan         = TIM_Channel_2,
         .pin   = {
             .gpio = GPIOB,
             .init = {
@@ -780,11 +783,11 @@ static const struct pios_video_cfg pios_video_cfg = {
                 .GPIO_OType = GPIO_OType_PP,
                 .GPIO_PuPd  = GPIO_PuPd_UP
             },
-            .pin_source                                = GPIO_PinSource7,
+            .pin_source     = GPIO_PinSource7,
         },
-        .remap                                         = GPIO_AF_TIM4,
+        .remap              = GPIO_AF_TIM4,
     },
-    .tim_oc_init                                       = {
+    .tim_oc_init            = {
         .TIM_OCMode       = TIM_OCMode_PWM1,
         .TIM_OutputState  = TIM_OutputState_Enable,
         .TIM_OutputNState = TIM_OutputNState_Disable,

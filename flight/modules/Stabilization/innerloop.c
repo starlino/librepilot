@@ -309,6 +309,7 @@ static void stabilizationInnerloopTask()
                 }
             // IMPORTANT: deliberately no "break;" here, execution continues with regular RATE control loop to avoid code duplication!
             // keep order as it is, RATE must follow!
+            // fall through
             case STABILIZATIONSTATUS_INNERLOOP_RATE:
             {
                 // limit rate to maximum configured limits (once here instead of 5 times in outer loop)
