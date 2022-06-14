@@ -44,6 +44,8 @@ typedef enum {
     INIT_STEP_WAIT_MON_VER_ACK,
     INIT_STEP_RESET_GPS,
     INIT_STEP_REVO_9600_BAUD,
+    INIT_STEP_SET_LOWRATE,
+    INIT_STEP_SET_LOWRATE_WAIT_ACK,
     INIT_STEP_GPS_BAUD,
     INIT_STEP_REVO_BAUD,
     INIT_STEP_ENABLE_SENTENCES,
@@ -93,6 +95,7 @@ ubx_cfg_msg_t msg_config_ubx6[] = {
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SBAS,    .rate = 0  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_TIMEGPS, .rate = 0  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_VELECEF, .rate = 0  },
+    { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_STATUS,  .rate = 0  },
 
     { .msgClass = UBX_CLASS_MON, .msgID = UBX_ID_MON_HW,      .rate = 0  },
     { .msgClass = UBX_CLASS_MON, .msgID = UBX_ID_MON_HW2,     .rate = 0  },
@@ -104,11 +107,10 @@ ubx_cfg_msg_t msg_config_ubx6[] = {
 
     { .msgClass = UBX_CLASS_RXM, .msgID = UBX_ID_RXM_SVSI,    .rate = 0  },
 
-    // message to enable
+    // message to enable, keep SVINFO at end
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_POSLLH,  .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_DOP,     .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SOL,     .rate = 1  },
-    { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_STATUS,  .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_VELNED,  .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_TIMEUTC, .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO,  .rate = 10 },
@@ -139,10 +141,14 @@ ubx_cfg_msg_t msg_config_ubx7[] = {
 
     { .msgClass = UBX_CLASS_RXM, .msgID = UBX_ID_RXM_SVSI,      .rate = 0  },
 
-    // message to enable
+    // message to enable, keep SVINFO at end
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_PVT,       .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_DOP,       .rate = 1  },
     { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO,    .rate = 10 },
+};
+
+ubx_cfg_msg_t msg_config_ubx_disable_svinfo[] = {
+    { .msgClass = UBX_CLASS_NAV, .msgID = UBX_ID_NAV_SVINFO, .rate = 0 },
 };
 
 // private defines
@@ -169,7 +175,8 @@ static volatile bool current_step_touched = false;
 // both the pointer and what it points to are volatile.  Yuk.
 static volatile status_t *volatile status = 0;
 static uint8_t hwsettings_baud;
-static uint8_t baud_to_try_index = 255;
+static uint8_t baud_to_try   = 0;
+static uint8_t new_gps_speed = 255;
 
 // functions
 
@@ -238,14 +245,10 @@ void gps_ubx_reset_sensor_type()
     // is this needed?
     // what happens if two tasks / threads try to do an XyzSet() at the same time?
     if (__sync_fetch_and_add(&mutex, 1) == 0) {
-        ubxHwVersion       = -1;
-        baud_to_try_index -= 1; // undo postincrement and start with the one that was most recently successful
-        ubxSensorType      = GPSPOSITIONSENSOR_SENSORTYPE_UNKNOWN;
+        ubxHwVersion  = -1;
+        baud_to_try   = new_gps_speed;
+        ubxSensorType = GPSPOSITIONSENSOR_SENSORTYPE_UNKNOWN;
         GPSPositionSensorSensorTypeSet(&ubxSensorType);
-        // make the sensor type / autobaud code time out immediately to send the request immediately
-        if (status) {
-            status->lastStepTimestampRaw += 0x8000000UL;
-        }
     }
     --mutex;
 }
@@ -283,14 +286,18 @@ static void config_gps_baud(uint16_t *bytes_to_send)
     // Ask GPS to change it's speed
     status->working_packet.message.payload.cfg_prt.baudRate     = hwsettings_gpsspeed_enum_to_baud(hwsettings_baud);
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_PRT, sizeof(ubx_cfg_prt_t));
+
+    // GPS will be found later at this new_gps_speed
+    new_gps_speed  = hwsettings_baud;
 }
 
 
-static void config_rate(uint16_t *bytes_to_send)
+static void config_rate(uint16_t *bytes_to_send, bool min_rate)
 {
     memset((uint8_t *)status->working_packet.buffer, 0, sizeof(UBXSentHeader_t) + sizeof(ubx_cfg_rate_t));
     // if rate is less than 1 uses the highest rate for current hardware
-    uint16_t rate = status->currentSettings.navRate > 0 ? status->currentSettings.navRate : 99;
+    // force rate to 1Hz if min_rate = true
+    uint16_t rate = (min_rate) ? 1 : (status->currentSettings.navRate > 0) ? status->currentSettings.navRate : 99;
     if (ubxHwVersion < UBX_HW_VERSION_7 && rate > UBX_MAX_RATE) {
         rate = UBX_MAX_RATE;
     } else if (ubxHwVersion < UBX_HW_VERSION_8 && rate > UBX_MAX_RATE_VER7) {
@@ -304,6 +311,11 @@ static void config_rate(uint16_t *bytes_to_send)
     status->working_packet.message.payload.cfg_rate.timeRef  = 1; // 0 = UTC Time, 1 = GPS Time
 
     *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_RATE, sizeof(ubx_cfg_rate_t));
+
+    if (min_rate) {
+        // used for INIT_STEP_SET_LOWRATE step
+        status->lastConfigSent = LAST_CONFIG_SENT_COMPLETED;
+    }
 }
 
 
@@ -428,11 +440,16 @@ static void config_save(uint16_t *bytes_to_send)
 
 static void configure(uint16_t *bytes_to_send)
 {
+    // for low baudrates, keep rate to 1Hz and fall to config_nav
+    // apply UbxRate from GPS settings for higher baudrates
+    bool min_rate = (new_gps_speed <= HWSETTINGS_GPSSPEED_9600) ? true : false;
+
     switch (status->lastConfigSent) {
     case LAST_CONFIG_SENT_START:
-        // increase message rates to 5 fixes per second
-        config_rate(bytes_to_send);
-        break;
+        if (!min_rate) {
+            config_rate(bytes_to_send, min_rate);
+            break;
+        }
 
     case LAST_CONFIG_SENT_START + 1:
         config_nav(bytes_to_send);
@@ -468,7 +485,7 @@ static void configure(uint16_t *bytes_to_send)
 }
 
 
-static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send)
+static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send, bool disable_svinfo)
 {
     int8_t msg = status->lastConfigSent + 1;
     uint8_t msg_count = (ubxHwVersion >= UBX_HW_VERSION_7) ?
@@ -477,17 +494,23 @@ static void enable_sentences(__attribute__((unused)) uint16_t *bytes_to_send)
                                 &msg_config_ubx7[0] : &msg_config_ubx6[0];
 
     if (msg >= 0 && msg < msg_count) {
-        status->working_packet.message.payload.cfg_msg = msg_config[msg];
+        // last message is SVINFO, disable if needed
+        status->working_packet.message.payload.cfg_msg = (msg == (msg_count - 1) && disable_svinfo) ? msg_config_ubx_disable_svinfo[0] : msg_config[msg];
         *bytes_to_send = prepare_packet((UBXSentPacket_t *)&status->working_packet, UBX_CLASS_CFG, UBX_ID_CFG_MSG, sizeof(ubx_cfg_msg_t));
     } else {
         status->lastConfigSent = LAST_CONFIG_SENT_COMPLETED;
+    }
+
+    // Reset GPSSatellites UAVO
+    if (disable_svinfo && (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) && (GPSSatellitesHandle() != NULL)) {
+        GPSSatellitesSetDefaults(GPSSatellitesHandle(), 0);
     }
 }
 
 
 #if defined(AUTOBAUD_CONFIGURE_STORE_AND_DISABLE)
 // permanently store our version of GPSSettings.UbxAutoConfig
-// we use this to disable after AbConfigStoreAndDisable is complete
+// we use this to disable after AutoBaudConfigureStoreAndDisable is complete
 static void setGpsSettings()
 {
     // trying to do this as perfectly as possible we must realize that they may have pressed Send on some fields
@@ -526,8 +549,6 @@ static void setGpsSettings()
 #endif /* if defined(AUTOBAUD_CONFIGURE_STORE_AND_DISABLE) */
 
 
-// 9600 baud and lower are not usable, and are best left at factory default
-// if the user selects 9600
 void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
 {
     *bytes_to_send = 0;
@@ -548,55 +569,38 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         // at low baud rates and high data rates the ubx gps simply must drop some outgoing data
         // this isn't really an error
         // and when a lot of data is being dropped, the MON VER reply often gets dropped
-        // on the other hand, uBlox documents that some versions discard data that is over 1 second old
-        // implying a 1 second send buffer and that it could be over 1 second before a reply is received
-        // later uBlox versions dropped this 1 second constraint and drop data when the send buffer is full
-        // and that could be even longer than 1 second
-        // send this more quickly and it will get a reply more quickly if a fixed percentage of replies are being dropped
 
+        uint32_t time_to_wait = UBX_PARSER_TIMEOUT;
+        // Add extra time to detect ubxHwVersion in case detection
+        // becomes more difficult due to a lower transmission rate
+        if (baud_to_try < HWSETTINGS_GPSSPEED_9600) {
+            time_to_wait += UBX_PARSER_TIMEOUT;
+        }
         // wait for the normal reply timeout before sending it over and over
-        if (PIOS_DELAY_DiffuS(status->lastStepTimestampRaw) < UBX_PARSER_TIMEOUT) {
+        if (PIOS_DELAY_DiffuS(status->lastStepTimestampRaw) < time_to_wait) {
             return;
         }
 
-        // at this point we have already waited for the MON_VER reply to time out (except the first time where it times out without being sent)
+        // at this point we have already waited for the MON_VER reply to time out
         // and the fact we are here says that ubxHwVersion has not been set (it is set externally)
         // so this try at this baud rate has failed
-        // if we get here
-        // select the next baud rate, skipping ahead if new baud rate is HwSettings.GPSSpeed
-        // set Revo baud rate to current++ value (immediate change so we can send right after that) and send the MON_VER request
-        // baud rate search order are most likely matches first
+        // if we get here set Revo baud rate to the previous incremented value and send the MON_VER request
 
         // if AutoBaud or higher, do AutoBaud
         if (status->currentSettings.UbxAutoConfig >= GPSSETTINGS_UBXAUTOCONFIG_AUTOBAUD) {
-            uint8_t baud_to_try;
-            static uint8_t baud_array[] = {
-                HWSETTINGS_GPSSPEED_57600,
-                HWSETTINGS_GPSSPEED_9600,
-                HWSETTINGS_GPSSPEED_115200,
-                HWSETTINGS_GPSSPEED_38400,
-                HWSETTINGS_GPSSPEED_19200,
-                HWSETTINGS_GPSSPEED_230400,
-                HWSETTINGS_GPSSPEED_4800,
-                HWSETTINGS_GPSSPEED_2400
-            };
-
             // first try HwSettings.GPSSpeed and then
-            // get the next baud rate to try from the table, but skip over the value of HwSettings.GPSSpeed
-            do {
-                // index is inited to be out of bounds, which is interpreted as "currently defined baud rate" (= HwSettings.GPSSpeed)
-                if (baud_to_try_index >= sizeof(baud_array) / sizeof(baud_array[0])) {
-                    HwSettingsGPSSpeedGet(&hwsettings_baud);
-                    baud_to_try = hwsettings_baud;
-                    baud_to_try_index = 0;
-                    break;
-                } else {
-                    baud_to_try = baud_array[baud_to_try_index++];
-                }
-                // skip HwSettings.GPSSpeed when you run across it in the list
-            } while (baud_to_try == hwsettings_baud);
+            // at startup new_gps_speed is not initialized yet
+            if (new_gps_speed > HWSETTINGS_GPSSPEED_230400) {
+                // try current speed set in HwSettings.GPSSpeed
+                HwSettingsGPSSpeedGet(&hwsettings_baud);
+                baud_to_try   = hwsettings_baud;
+                new_gps_speed = baud_to_try;
+            }
             // set the FC (Revo) baud rate
             gps_set_fc_baud_from_arg(baud_to_try);
+
+            // increase baud_to_try for next try, in case ubxHwVersion is not set
+            baud_to_try = (baud_to_try < HWSETTINGS_GPSSPEED_230400) ? baud_to_try + 1 : HWSETTINGS_GPSSPEED_2400;
         }
 
         // this code is executed even if ubxautoconfig is disabled
@@ -688,8 +692,6 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // GPS was just reset, so GPS is running 9600 baud, and Revo is running whatever baud it was before
     case INIT_STEP_REVO_9600_BAUD:
 #if !defined(ALWAYS_RESET)
-        // if user requests a low baud rate then we just reset and leave it set to NMEA
-        // because low baud and high OP data rate doesn't play nice
         // if user requests that settings be saved, we will reset here too
         // that makes sure that all strange settings are reset to factory default
         // else these strange settings may persist because we don't reset all settings by hand
@@ -713,13 +715,30 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // at most, we just set Revo baud and that doesn't send any data
     // fall through to next state
     // we can do that if we choose because we haven't sent any data in this state
-    // set_current_step_if_untouched(INIT_STEP_GPS_BAUD);
+    // set_current_step_if_untouched(INIT_STEP_SET_LOWRATE);
     // allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
     // break;
+
+    case INIT_STEP_SET_LOWRATE:
+        // Here we set minimal baudrate *before* changing gps baudrate
+        config_rate(bytes_to_send, true);
+        if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
+            status->lastConfigSent = LAST_CONFIG_SENT_START;
+            status->retryCount     = 0;
+            set_current_step_if_untouched(INIT_STEP_GPS_BAUD);
+        } else {
+            set_current_step_if_untouched(INIT_STEP_SET_LOWRATE_WAIT_ACK);
+            status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
+        }
+        break;
 
     // Revo and GPS are both at 9600 baud
     // fall through
     case INIT_STEP_GPS_BAUD:
+        // wait for previous step (INIT_STEP_SET_LOWRATE)
+        if (PIOS_DELAY_DiffuS(status->lastStepTimestampRaw) < UBX_UNVERIFIED_STEP_WAIT_TIME) {
+            return;
+        }
         // https://www.u-blox.com/images/downloads/Product_Docs/u-bloxM8_ReceiverDescriptionProtocolSpec_%28UBX-13003221%29_Public.pdf
         // It is possible to change the current communications port settings using a UBX-CFG-CFG message. This could
         // affect baud rate and other transmission parameters. Because there may be messages queued for transmission
@@ -748,51 +767,48 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         }
         // set the Revo GPS port baud rate to the (same) user configured value
         gps_set_fc_baud_from_arg(hwsettings_baud);
-        status->lastConfigSent = LAST_CONFIG_SENT_START;
-        // zero the retries for the first "enable sentence"
-        status->retryCount     = 0;
-        // skip enabling UBX sentences for low baud rates
-        // low baud rates are not usable, and higher data rates just makes it harder for this code to change the configuration
-        if (hwsettings_baud <= HWSETTINGS_GPSSPEED_9600) {
-            set_current_step_if_untouched(INIT_STEP_SAVE);
-        } else {
-            set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES);
-        }
+        // enable UBX sentences
+        set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES);
         // allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
         break;
 
     case INIT_STEP_ENABLE_SENTENCES:
-    case INIT_STEP_CONFIGURE:
     {
-        bool step_configure = (status->currentStep == INIT_STEP_CONFIGURE);
-        if (step_configure) {
-            configure(bytes_to_send);
-        } else {
-            enable_sentences(bytes_to_send);
-        }
-
-        // for some branches, allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
+        // for low baudrates, disable SVINFO
+        bool disable_svinfo = (new_gps_speed <= HWSETTINGS_GPSSPEED_9600) ? true : false;
+        enable_sentences(bytes_to_send, disable_svinfo);
         if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
-            if (step_configure) {
-                // zero retries for the next state that needs it (INIT_STEP_SAVE)
-                status->retryCount = 0;
-                set_current_step_if_untouched(INIT_STEP_SAVE);
-            } else {
-                // finished enabling sentences, now configure() needs to start at the beginning
-                status->lastConfigSent = LAST_CONFIG_SENT_START;
-                set_current_step_if_untouched(INIT_STEP_CONFIGURE);
-            }
+            // finished enabling sentences, now configure() needs to start at the beginning
+            status->lastConfigSent = LAST_CONFIG_SENT_START;
+            // zero the retries for the first "configure"
+            status->retryCount     = 0;
+            set_current_step_if_untouched(INIT_STEP_CONFIGURE);
         } else {
-            set_current_step_if_untouched(step_configure ? INIT_STEP_CONFIGURE_WAIT_ACK : INIT_STEP_ENABLE_SENTENCES_WAIT_ACK);
+            set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES_WAIT_ACK);
             status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
         }
         break;
     }
 
+    case INIT_STEP_CONFIGURE:
+    {
+        configure(bytes_to_send);
+        if (status->lastConfigSent == LAST_CONFIG_SENT_COMPLETED) {
+            status->retryCount = 0;
+            set_current_step_if_untouched(INIT_STEP_SAVE);
+        } else {
+            set_current_step_if_untouched(INIT_STEP_CONFIGURE_WAIT_ACK);
+            status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
+        }
+        break;
+    }
+
+    case INIT_STEP_SET_LOWRATE_WAIT_ACK:
     case INIT_STEP_ENABLE_SENTENCES_WAIT_ACK:
     case INIT_STEP_CONFIGURE_WAIT_ACK: // Wait for an ack from GPS
     {
-        bool step_configure = (status->currentStep == INIT_STEP_CONFIGURE_WAIT_ACK);
+        bool step_setlowrate = (status->currentStep == INIT_STEP_SET_LOWRATE_WAIT_ACK);
+        bool step_configure  = (status->currentStep == INIT_STEP_CONFIGURE_WAIT_ACK);
         if (ubxLastAck.clsID == status->requiredAck.clsID && ubxLastAck.msgID == status->requiredAck.msgID) {
             // Continue with next configuration option
             // start retries over for the next setting to be sent
@@ -814,6 +830,8 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
         // success or failure here, retries are handled elsewhere
         if (step_configure) {
             set_current_step_if_untouched(INIT_STEP_CONFIGURE);
+        } else if (step_setlowrate) {
+            set_current_step_if_untouched(INIT_STEP_SET_LOWRATE);
         } else {
             set_current_step_if_untouched(INIT_STEP_ENABLE_SENTENCES);
         }

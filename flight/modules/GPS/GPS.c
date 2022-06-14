@@ -100,8 +100,9 @@ void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev);
 // ****************
 // Private constants
 
-// GPS timeout is greater than 1000ms so that a stock GPS configuration can be used without timeout errors
-#define GPS_TIMEOUT_MS             1250
+// GPS timeout is greater than 1000ms so that a stock GPS configuration
+// or 2400bds can be used without timeout errors
+#define GPS_TIMEOUT_MS             1800
 
 // delay from detecting HomeLocation.Set == False before setting new homelocation
 // this prevent that a save with homelocation.Set = false triggered by gps ends saving
@@ -129,7 +130,7 @@ void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev);
 // are run often enough.
 // GPS_LOOP_DELAY_MS on the other hand, should be less then 5.55 ms. A value set too high will cause data to be dropped.
 
-#define GPS_LOOP_DELAY_MS        5
+#define GPS_LOOP_DELAY_MS        4
 #define GPS_BLOCK_ON_NO_DATA_MS  20
 
 #ifdef PIOS_GPS_SETS_HOMELOCATION
@@ -555,11 +556,12 @@ void gps_set_fc_baud_from_arg(uint8_t baud)
     // can the code stand having two tasks/threads do an XyzSet() call at the same time?
     if (__sync_fetch_and_add(&mutex, 1) == 0) {
         // don't bother doing the baud change if it is actually the same
-        // might drop less data
         if (previous_baud != baud) {
             previous_baud = baud;
             // Set Revo port hwsettings_baud
             PIOS_COM_ChangeBaud(PIOS_COM_GPS, hwsettings_gpsspeed_enum_to_baud(baud));
+            // clear Rx buffer
+            PIOS_COM_ClearRxBuffer(PIOS_COM_GPS);
             GPSPositionSensorBaudRateSet(&baud);
         }
     }
@@ -574,15 +576,14 @@ static void gps_set_fc_baud_from_settings()
     uint8_t speed;
 
     // Retrieve settings
+    HwSettingsGPSSpeedGet(&speed);
+
 #if defined(PIOS_INCLUDE_GPS_DJI_PARSER) && !defined(PIOS_GPS_MINIMAL)
     if (gpsSettings.DataProtocol == GPSSETTINGS_DATAPROTOCOL_DJI) {
         speed = HWSETTINGS_GPSSPEED_115200;
-    } else {
+    }
 #endif
-    HwSettingsGPSSpeedGet(&speed);
-#if defined(PIOS_INCLUDE_GPS_DJI_PARSER) && !defined(PIOS_GPS_MINIMAL)
-}
-#endif
+
     // set fc baud
     gps_set_fc_baud_from_arg(speed);
 }
@@ -666,16 +667,19 @@ void AuxMagSettingsUpdatedCb(__attribute__((unused)) UAVObjEvent *ev)
 #if defined(ANY_FULL_GPS_PARSER)
 void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev)
 {
+    GPSSettingsDataProtocolOptions previous_data_protocol = gpsSettings.DataProtocol;
     ubx_autoconfig_settings_t newconfig;
 
     GPSSettingsGet(&gpsSettings);
 
 #if defined(PIOS_INCLUDE_GPS_DJI_PARSER)
-    // each time there is a protocol change, set the baud rate
-    // so that DJI can be forced to 115200, but changing to another protocol will change the baud rate to the user specified value
     // note that changes to HwSettings GPS baud rate are detected in the HwSettings callback,
-    // but changing to/from DJI is effectively a baud rate change because DJI is forced to be 115200
-    gps_set_fc_baud_from_settings(); // knows to force 115200 for DJI
+    // but changing to/from DJI in GPSSettings is effectively a baud rate change because DJI is forced to be 115200
+    if (((gpsSettings.DataProtocol == GPSSETTINGS_DATAPROTOCOL_DJI) && (previous_data_protocol != GPSSETTINGS_DATAPROTOCOL_DJI)) ||
+        ((gpsSettings.DataProtocol != GPSSETTINGS_DATAPROTOCOL_DJI) && (previous_data_protocol == GPSSETTINGS_DATAPROTOCOL_DJI))) {
+        // knows to force 115200 for DJI
+        gps_set_fc_baud_from_settings();
+    }
 #endif
 
     // it's OK that ubx auto config is inited and ready to go, when GPS is disabled or running another protocol
@@ -792,12 +796,6 @@ void updateGpsSettings(__attribute__((unused)) UAVObjEvent *ev)
         // do whatever the user has configured for power on startup
         // even autoconfig disabled still gets the ubx version
         gps_ubx_autoconfig_set(&newconfig);
-    }
-#endif
-#if defined(PIOS_INCLUDE_GPS_DJI_PARSER)
-    if (gpsSettings.DataProtocol == GPSSETTINGS_DATAPROTOCOL_DJI) {
-        // clear out satellite data because DJI doesn't provide it
-        GPSSatellitesSetDefaults(GPSSatellitesHandle(), 0);
     }
 #endif
 }
