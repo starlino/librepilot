@@ -231,7 +231,7 @@ void FlightLogManager::retrieveLogs(int flightToRetrieve)
                             memset(&fields, 0xFF, total_len);
                             ExtendedDebugLogEntry::DataFields tmp = logEntry->getData();
                             memcpy(&fields, &tmp.Data[start], header_len);
-                            
+
                             // check wether a packed object is found
                             // note that empty data blocks are set as 0xFF in flight side to minimize flash wearing
                             // thus as soon as this read outside of used area, the test will fail as lenght would be 0xFFFF
