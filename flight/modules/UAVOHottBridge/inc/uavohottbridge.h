@@ -6,7 +6,7 @@
  * @{
  *
  * @file       uavohottbridge.h
- * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017.
+ * @author     The LibrePilot Project, http://www.librepilot.org Copyright (C) 2017-2019.
  *             Tau Labs, http://taulabs.org, Copyright (C) 2013
  * @brief      sends telemery data on HoTT request
  *
@@ -30,101 +30,102 @@
  */
 
 // timing variables
-#define IDLE_TIME               10    // idle line delay to prevent data crashes on telemetry line.
-#define DATA_TIME               3             // time between 2 transmitted bytes
+#define IDLE_TIME               10      // idle line delay to prevent data crashes on telemetry line.
+#define DATA_TIME               3       // time between 2 transmitted bytes
 
 // sizes and lengths
-#define climbratesize           50                        // defines size of ring buffer for climbrate calculation
-#define statussize              21                           // number of characters in status line
+#define climbratesize           62      // defines size of ring buffer for climbrate calculation
+#define statussize              21      // number of characters in status line
 #define HOTT_MAX_MESSAGE_LENGTH 200
 
 // scale factors
-#define M_TO_CM                 100             // scale m to cm or m/s to cm/s
+#define M_TO_CM                 100     // scale m to cm or m/s to cm/s
 #define MS_TO_KMH               3.6f    // scale m/s to km/h
 #define DEG_TO_UINT             0.5f    // devide degrees by 2. then the value fits into a byte.
 
 // offsets. used to make transmitted values unsigned.
-#define OFFSET_ALTITUDE         500             // 500m
+#define OFFSET_ALTITUDE         500     // 500m
 #define OFFSET_CLIMBRATE        30000   // 30000cm/s or 300m/s
-#define OFFSET_CLIMBRATE3S      120             // 120m/s
-#define OFFSET_TEMPERATURE      20              // 20 degrees
+#define OFFSET_CLIMBRATE3S      120     // 120m/s
+#define OFFSET_TEMPERATURE      20      // 20 degrees
 
 // Bits to invert display areas or values
-#define VARIO_INVERT_ALT        (1 << 0)                 // altitude
-#define VARIO_INVERT_MAX        (1 << 1)                 // max altitude
-#define VARIO_INVERT_MIN        (1 << 2)                 // min altitude
-#define VARIO_INVERT_CR1S       (1 << 3)                // climbrate 1s
-#define VARIO_INVERT_CR3S       (1 << 4)                // climbrate 3s
-#define VARIO_INVERT_CR10S      (1 << 5)               // climbrate 10s
+#define VARIO_INVERT_ALT        (1 << 0)      // altitude
+#define VARIO_INVERT_MAX        (1 << 1)      // max altitude
+#define VARIO_INVERT_MIN        (1 << 2)      // min altitude
+#define VARIO_INVERT_CR1S       (1 << 3)      // climbrate 1s
+#define VARIO_INVERT_CR3S       (1 << 4)      // climbrate 3s
+#define VARIO_INVERT_CR10S      (1 << 5)      // climbrate 10s
 
-#define GPS_INVERT_HDIST        (1 << 0)                 // home distance
-#define GPS_INVERT_SPEED        (1 << 1)                 // speed (kmh)
-#define GPS_INVERT_ALT          (1 << 2)                   // altitude
-#define GPS_INVERT_CR1S         (1 << 3)                  // climbrate 1s
-#define GPS_INVERT_CR3S         (1 << 4)                  // climbrate 3s
-#define GPS_INVERT2_POS         (1 << 0)                  // GPS postion values
+#define GPS_INVERT_HDIST        (1 << 0)      // home distance
+#define GPS_INVERT_SPEED        (1 << 1)      // speed (kmh)
+#define GPS_INVERT_ALT          (1 << 2)      // altitude
+#define GPS_INVERT_CR1S         (1 << 3)      // climbrate 1s
+#define GPS_INVERT_CR3S         (1 << 4)      // climbrate 3s
+#define GPS_INVERT2_POS         (1 << 0)      // GPS postion values
 
-#define GAM_INVERT_CELL         (1 << 0)                  // cell voltage
-#define GAM_INVERT_BATT1        (1 << 1)                 // battery 1 voltage
-#define GAM_INVERT_BATT2        (1 << 2)                 // battery 1 voltage
-#define GAM_INVERT_TEMP1        (1 << 3)                 // temperature 1
-#define GAM_INVERT_TEMP2        (1 << 4)                 // temperature 2
-#define GAM_INVERT_FUEL         (1 << 5)                  // fuel
-#define GAM_INVERT2_CURRENT     (1 << 0)              // current
-#define GAM_INVERT2_VOLTAGE     (1 << 1)              // voltage
-#define GAM_INVERT2_ALT         (1 << 2)                  // altitude
-#define GAM_INVERT2_CR1S        (1 << 3)                 // climbrate 1s
-#define GAM_INVERT2_CR3S        (1 << 4)                 // climbrate 3s
+#define GAM_INVERT_CELL         (1 << 0)      // cell voltage
+#define GAM_INVERT_BATT1        (1 << 1)      // battery 1 voltage
+#define GAM_INVERT_BATT2        (1 << 2)      // battery 1 voltage
+#define GAM_INVERT_TEMP1        (1 << 3)      // temperature 1
+#define GAM_INVERT_TEMP2        (1 << 4)      // temperature 2
+#define GAM_INVERT_FUEL         (1 << 5)      // fuel
+#define GAM_INVERT2_CURRENT     (1 << 0)      // current
+#define GAM_INVERT2_VOLTAGE     (1 << 1)      // voltage
+#define GAM_INVERT2_ALT         (1 << 2)      // altitude
+#define GAM_INVERT2_CR1S        (1 << 3)      // climbrate 1s
+#define GAM_INVERT2_CR3S        (1 << 4)      // climbrate 3s
 
-#define EAM_INVERT_CAPACITY     (1 << 0)              // capacity
-#define EAM_INVERT_BATT1        (1 << 1)                 // battery 1 voltage
-#define EAM_INVERT_BATT2        (1 << 2)                 // battery 1 voltage
-#define EAM_INVERT_TEMP1        (1 << 3)                 // temperature 1
-#define EAM_INVERT_TEMP2        (1 << 4)                 // temperature 2
-#define EAM_INVERT_ALT          (1 << 5)                   // altitude
-#define EAM_INVERT_CURRENT      (1 << 6)               // current
-#define EAM_INVERT_VOLTAGE      (1 << 7)               // voltage
-#define EAM_INVERT2_ALT         (1 << 2)                  // altitude
-#define EAM_INVERT2_CR1S        (1 << 3)                 // climbrate 1s
-#define EAM_INVERT2_CR3S        (1 << 4)                 // climbrate 3s
+#define EAM_INVERT_CAPACITY     (1 << 0)      // capacity
+#define EAM_INVERT_BATT1        (1 << 1)      // battery 1 voltage
+#define EAM_INVERT_BATT2        (1 << 2)      // battery 1 voltage
+#define EAM_INVERT_TEMP1        (1 << 3)      // temperature 1
+#define EAM_INVERT_TEMP2        (1 << 4)      // temperature 2
+#define EAM_INVERT_ALT          (1 << 5)      // altitude
+#define EAM_INVERT_CURRENT      (1 << 6)      // current
+#define EAM_INVERT_VOLTAGE      (1 << 7)      // voltage
+#define EAM_INVERT2_ALT         (1 << 2)      // altitude
+#define EAM_INVERT2_CR1S        (1 << 3)      // climbrate 1s
+#define EAM_INVERT2_CR3S        (1 << 4)      // climbrate 3s
 
-#define ESC_INVERT_VOLTAGE      (1 << 0)               // voltage
-#define ESC_INVERT_TEMP1        (1 << 1)                 // temperature 1
-#define ESC_INVERT_TEMP2        (1 << 2)                 // temperature 2
-#define ESC_INVERT_CURRENT      (1 << 3)               // current
-#define ESC_INVERT_RPM          (1 << 4)                   // rpm
-#define ESC_INVERT_CAPACITY     (1 << 5)              // capacity
-#define ESC_INVERT_MAXCURRENT   (1 << 6)    // maximum current
+#define ESC_INVERT_VOLTAGE      (1 << 0)      // voltage
+#define ESC_INVERT_TEMP1        (1 << 1)      // temperature 1
+#define ESC_INVERT_TEMP2        (1 << 2)      // temperature 2
+#define ESC_INVERT_CURRENT      (1 << 3)      // current
+#define ESC_INVERT_RPM          (1 << 4)      // rpm
+#define ESC_INVERT_CAPACITY     (1 << 5)      // capacity
+#define ESC_INVERT_MAXCURRENT   (1 << 6)      // maximum current
 
 // message codes
-#define HOTT_TEXT_ID            0x7f                       // Text request
-#define HOTT_BINARY_ID          0x80                     // Binary request
-#define HOTT_VARIO_ID           0x89                      // Vario Module ID
-#define HOTT_VARIO_TEXT_ID      0x90         // Vario Module TEXT ID
-#define HOTT_GPS_ID             0x8a                        // GPS Module ID
-#define HOTT_GPS_TEXT_ID        0xa0           // GPS Module TEXT ID
-#define HOTT_ESC_ID             0x8c                        // ESC Module ID
-#define HOTT_ESC_TEXT_ID        0xc0           // ESC Module TEXT ID
-#define HOTT_GAM_ID             0x8d                        // General Air Module ID
-#define HOTT_GAM_TEXT_ID        0xd0           // General Air Module TEXT ID
-#define HOTT_EAM_ID             0x8e                        // Electric Air Module ID
-#define HOTT_EAM_TEXT_ID        0xe0           // Electric Air Module TEXT ID
-#define HOTT_TEXT_START         0x7b            // Start byte Text mode
-#define HOTT_START              0x7c                         // Start byte Binary mode
-#define HOTT_STOP               0x7d                          // End byte
-#define HOTT_BUTTON_DEC         0xEB            // minus button
-#define HOTT_BUTTON_INC         0xED            // plus button
-#define HOTT_BUTTON_SET         0xE9            // set button
-#define HOTT_BUTTON_NIL         0x0F            // esc button
-#define HOTT_BUTTON_NEXT        0xEE           // next button
-#define HOTT_BUTTON_PREV        0xE7           // previous button
+#define HOTT_TEXT_ID            0x7f      // Text request
+#define HOTT_BINARY_ID          0x80      // Binary request
+#define HOTT_VARIO_ID           0x89      // Vario Module ID
+#define HOTT_VARIO_TEXT_ID      0x90      // Vario Module TEXT ID
+#define HOTT_GPS_ID             0x8a      // GPS Module ID
+#define HOTT_GPS_TEXT_ID        0xa0      // GPS Module TEXT ID
+#define HOTT_ESC_ID             0x8c      // ESC Module ID
+#define HOTT_ESC_TEXT_ID        0xc0      // ESC Module TEXT ID
+#define HOTT_GAM_ID             0x8d      // General Air Module ID
+#define HOTT_GAM_TEXT_ID        0xd0      // General Air Module TEXT ID
+#define HOTT_EAM_ID             0x8e      // Electric Air Module ID
+#define HOTT_EAM_TEXT_ID        0xe0      // Electric Air Module TEXT ID
+#define HOTT_TEXT_START         0x7b      // Start byte Text mode
+#define HOTT_START              0x7c      // Start byte Binary mode
+#define HOTT_STOP               0x7d      // End byte
 
-// prefined signal tones or spoken announcments
+#define HOTT_BUTTON_DEC         0xEB      // minus button
+#define HOTT_BUTTON_INC         0xED      // plus button
+#define HOTT_BUTTON_SET         0xE9      // set button
+#define HOTT_BUTTON_NIL         0x0F      // esc button
+#define HOTT_BUTTON_NEXT        0xEE      // next button
+#define HOTT_BUTTON_PREV        0xE7      // previous button
+
+// prefined signal tones or spoken announcements
 #define HOTT_TONE_A             1       // minimum speed
 #define HOTT_TONE_B             2       // sink rate 3 seconds
 #define HOTT_TONE_C             3       // sink rate 1 second
 #define HOTT_TONE_D             4       // maximum distance
-#define HOTT_TONE_E             5       // -
+#define HOTT_TONE_E             5       // low signal
 #define HOTT_TONE_F             6       // minimum temperature sensor 1
 #define HOTT_TONE_G             7       // minimum temperature sensor 2
 #define HOTT_TONE_H             8       // maximum temperature sensor 1
@@ -146,6 +147,16 @@
 #define HOTT_TONE_X             24      // maximum input voltage
 #define HOTT_TONE_Y             25      // maximum rpm
 #define HOTT_TONE_Z             26      // maximum height
+#define HOTT_TONE_27            27      // sudden descent
+#define HOTT_TONE_28            28      // fast descent
+#define HOTT_TONE_29            29      // normal descent
+#define HOTT_TONE_30            30      // slow descent
+#define HOTT_TONE_31            31      // very slow descent
+#define HOTT_TONE_32            32      // very slow rise
+#define HOTT_TONE_33            33      // slow rise
+#define HOTT_TONE_34            34      // normal rise
+#define HOTT_TONE_35            35      // fast rise
+#define HOTT_TONE_36            36      // sudden rise
 #define HOTT_TONE_20M           37      // 20 meters
 #define HOTT_TONE_40M           38      // 40 meters
 #define HOTT_TONE_60M           39      // 60 meters
@@ -157,10 +168,18 @@
 #define HOTT_TONE_400M          47      // 400 meters
 #define HOTT_TONE_600M          48      // 600 meters
 #define HOTT_TONE_800M          49      // 800 meters
-#define HOTT_TONE_1000M         50      // 10000 meters
+#define HOTT_TONE_1000M         50      // 1000 meters
 #define HOTT_TONE_51            51      // maximum servo temperature
 #define HOTT_TONE_52            52      // maximum servo position difference
 
+#define HOTT_KEY_DEC            11
+#define HOTT_KEY_INC            13
+#define HOTT_KEY_NEXT           14
+#define HOTT_KEY_PREV           7
+#define HOTT_KEY_SET            9
+
+#define HOTT_TEXT_LINES         8
+#define HOTT_TEXT_COLUMNS       21
 
 // Private types
 typedef struct {
@@ -171,18 +190,20 @@ typedef struct {
 // Private structures
 struct telemetrydata {
     HoTTBridgeSettingsData Settings;
-    AttitudeStateData Attitude;
-    BaroSensorData Baro;
+    AttitudeStateData      Attitude;
+    AccelStateData         Accel;
+    BaroSensorData         Baro;
     FlightBatteryStateData Battery;
-    FlightStatusData FlightStatus;
+    FlightStatusData       FlightStatus;
     GPSPositionSensorData  GPS;
-    AirspeedStateData Airspeed;
+    AirspeedStateData      Airspeed;
     GPSTimeData GPStime;
-    GyroSensorData    Gyro;
-    HomeLocationData  Home;
-    PositionStateData Position;
-    SystemAlarmsData  SysAlarms;
-    VelocityStateData Velocity;
+    GyroSensorData         Gyro;
+    HomeLocationData       Home;
+    PositionStateData      Position;
+    SystemAlarmsData       SysAlarms;
+    VelocityStateData      Velocity;
+    TemperatureStateData   Temp;
     int16_t climbratebuffer[climbratesize];
     uint8_t climbrate_pointer;
     float   altitude;
@@ -194,8 +215,80 @@ struct telemetrydata {
     float   climbrate10s;
     float   homedistance;
     float   homecourse;
+    float   max_distance;
+    float   max_speed;
+    float   current_G;  // G force
+    float   max_G;
+    float   min_G;
+    float   min_voltage;
+    float   max_temp1;
+    float   max_temp2;
     uint8_t last_armed;
     char    statusline[statussize];
+};
+
+// HoTT menu
+static const char *const hottTextPageTitle[] = {
+    "**LIBREPILOT HoTT****",
+    "**LIBREPILOT CONFIG**",
+    "*****GPS CONFIG******",
+    "***BATTERY CONFIG****",
+    "---VARIO WARNINGS----",
+    "----VARIO LIMITS-----",
+    "------GPS PAGE-------",
+    "--GENERAL AIR PAGE---",
+    "--ELECTRIC AIR PAGE--",
+    "------ESC PAGE-------",
+    "--SENSORREDIR PAGE---"
+};
+
+typedef enum {
+    HOTTTEXT_PAGE_MAIN = 0,
+    HOTTTEXT_PAGE_MAINCONFIG    = 1,
+    HOTTTEXT_PAGE_GPSCONFIG     = 2,
+    HOTTTEXT_PAGE_BATTERYCONFIG = 3,
+    HOTTTEXT_PAGE_VARIOWARNINGS = 4,
+    HOTTTEXT_PAGE_VARIOLIMITS   = 5,
+    HOTTTEXT_PAGE_GPS         = 6,
+    HOTTTEXT_PAGE_GENERAL     = 7,
+    HOTTTEXT_PAGE_ELECTRIC    = 8,
+    HOTTTEXT_PAGE_ESC         = 9,
+    HOTTTEXT_PAGE_SENSORREDIR = 10,
+} hottTextPageElem;
+
+#define HOTTTEXT_PAGE_NUMELEM 11
+
+typedef enum {
+    HOTTTEXT_EDITSTATUS_STEP1   = 0,
+    HOTTTEXT_EDITSTATUS_STEP10  = 1,
+    HOTTTEXT_EDITSTATUS_STEP100 = 2,
+    HOTTTEXT_EDITSTATUS_STEP1K  = 3,
+    HOTTTEXT_EDITSTATUS_STEP10K = 4,
+    HOTTTEXT_EDITSTATUS_DONE    = 5,
+} hottTextEditStatusElem;
+
+static const char *const hottTextADCpinNames[] = {
+    "----",
+    "ADC0",
+    "ADC1",
+    "ADC2",
+    "ADC3",
+    "ADC4",
+    "ADC5",
+    "ADC6",
+    "ADC7"
+};
+
+static const char *const hottTextSensorRedirectNames[] = {
+    "  NONE  ",
+    "GPSSPEED",
+    "AIRSPEED",
+    "BATTVOLT",
+    "GYROTEMP",
+    "BAROTEMP",
+    " TEMP1  ",
+    " TEMP2  ",
+    " GFORCE "
 };
 
 // VARIO Module message structure
@@ -275,9 +368,9 @@ struct hott_gam_message {
     uint8_t cell4;
     uint8_t cell5;
     uint8_t cell6;
-    uword_t batt1_voltage; // battery sensor 1 in 0.1V steps, 50 == 5.5V
-    uword_t batt2_voltage; // battery sensor 2 voltage
-    uint8_t temperature1; // temperature 1 in °C, offset of 20, 20 == 0°C
+    uword_t batt1_voltage; // battery sensor 1 in 0.1V steps, 50 == 5.5V, max 99.0V
+    uword_t batt2_voltage; // battery sensor 2 voltage,
+    uint8_t temperature1; // temperature 1 in °C, offset of 20, 20 == 0°C, max 200°C
     uint8_t temperature2; // temperature 2
     uint8_t fuel_procent; // fuel capacity in %, values from 0..100
     uword_t fuel_ml; // fuel capacity in ml, values from 0..65535
@@ -288,12 +381,12 @@ struct hott_gam_message {
     uword_t current; // current in 0.1A steps
     uword_t voltage; // main power voltage in 0.1V steps
     uword_t capacity; // used battery capacity in 10mAh steps
-    uword_t speed; // speed in km/h
+    uword_t speed; // speed in km/h (not used ?)
     uint8_t min_cell_volt; // lowest cell voltage in 20mV steps. 124 == 2.48V
     uint8_t min_cell_volt_num; // number of the cell with the lowest voltage
     uword_t rpm2; // rpm2 in 10 rpm steps, 300 == 3000rpm
     uint8_t g_error_number; // general error number (Voice error == 12)
-    uint8_t pressure; // pressure up to 15bar, 0.1bar steps
+    uint8_t pressure; // pressure up to 25bar, 0.1bar steps
     uint8_t version; // version number
     uint8_t stop; // stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed
@@ -321,10 +414,10 @@ struct hott_eam_message {
     uint8_t cell5_H;
     uint8_t cell6_H;
     uint8_t cell7_H;
-    uword_t batt1_voltage; // battery sensor 1 voltage, in steps of 0.02V
-    uword_t batt2_voltage; // battery sensor 2 voltage, in steps of 0.02V
-    uint8_t temperature1; // temperature sensor 1. 20 = 0 degrees
-    uint8_t temperature2; // temperature sensor 2. 20 = 0 degrees
+    uword_t batt1_voltage; // battery sensor 1 voltage, in steps of 0.02V max 99.0V
+    uword_t batt2_voltage; // battery sensor 2 voltage, in steps of 0.02V max 99.0V
+    uint8_t temperature1; // temperature sensor 1. 20 = 0 degrees, max 200°C
+    uint8_t temperature2; // temperature sensor 2. 20 = 0 degrees, max 200°C
     uword_t altitude; // altitude (meters). 500 = 0 meters
     uword_t current; // current (A) in steps of 0.1A
     uword_t voltage; // main power voltage in steps of 0.1V
@@ -334,7 +427,7 @@ struct hott_eam_message {
     uword_t rpm; // rpm in steps of 10 rpm
     uint8_t electric_min; // estaminated flight time in minutes.
     uint8_t electric_sec; // estaminated flight time in seconds.
-    uword_t speed; // speed in km/h in steps of 1 km/h
+    uword_t speed; // speed in km/h in steps of 1 km/h (not used ?)
     uint8_t stop; // Stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed.
 };
@@ -368,7 +461,7 @@ struct hott_text_message {
     uint8_t start; // Start byte
     uint8_t sensor_id; // TEXT id
     uint8_t warning;
-    uint8_t text[21][8]; // text field 21 columns and 8 rows (bit 7=1 for inverse display)
+    char    text[HOTT_TEXT_LINES][HOTT_TEXT_COLUMNS]; // text field 21 columns and 8 rows (bit 7=1 for inverse display)
     uint8_t stop; // Stop byte
     uint8_t checksum; // Lower 8-bits of all bytes summed.
 };
