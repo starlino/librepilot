@@ -77,13 +77,13 @@
 
 #define ADC_XX_PIN_NOTFOUND -1
 
-#define maxu2(x)    ((x)>99?99:(x))
-#define maxu3(x)    ((x)>999?999:(x))
-#define maxu4(x)    ((x)>9999?9999:(x))
+#define maxu2(x) ((x) > 99 ? 99 : (x))
+#define maxu3(x) ((x) > 999 ? 999 : (x))
+#define maxu4(x) ((x) > 9999 ? 9999 : (x))
 
-#define maxd2(x)    ((x)<-99?-99:(maxu2(x)))
-#define maxd3(x)    ((x)<-999?-999:(maxu3(x)))
-#define maxd4(x)    ((x)<-9999?-9999:(maxu4(x)))
+#define maxd2(x) ((x) < -99 ? -99 : (maxu2(x)))
+#define maxd3(x) ((x) < -999 ? -999 : (maxu3(x)))
+#define maxd4(x) ((x) < -9999 ? -9999 : (maxu4(x)))
 
 static bool module_enabled = false;
 
@@ -1389,7 +1389,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GPSCONFIG:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1397,7 +1397,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_BATTERYCONFIG;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_BATTERYCONFIG:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1405,7 +1405,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_VARIOWARNINGS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1413,31 +1413,31 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOLIMITS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_VARIOLIMITS:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GPS:
             if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GENERAL;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GENERAL:
             if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ELECTRIC;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_ELECTRIC:
             if (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ESC;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_ESC:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1445,7 +1445,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_SENSORREDIR;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_SENSORREDIR:
             break;
         default:
@@ -1458,25 +1458,25 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_ESC;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_ESC:
             if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ELECTRIC;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_ELECTRIC:
             if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GENERAL;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GENERAL:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GPS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1484,7 +1484,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOLIMITS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_VARIOLIMITS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1492,7 +1492,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_VARIOWARNINGS:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1500,13 +1500,13 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_BATTERYCONFIG;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_BATTERYCONFIG:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
-            // fall through
+        // fall through
         case HOTTTEXT_PAGE_GPSCONFIG:
             page = HOTTTEXT_PAGE_MAINCONFIG;
             break;
