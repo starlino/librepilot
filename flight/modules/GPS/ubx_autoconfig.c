@@ -450,6 +450,7 @@ static void configure(uint16_t *bytes_to_send)
             config_rate(bytes_to_send, min_rate);
             break;
         }
+    // fall through
 
     case LAST_CONFIG_SENT_START + 1:
         config_nav(bytes_to_send);
@@ -717,7 +718,7 @@ void gps_ubx_autoconfig_run(char * *buffer, uint16_t *bytes_to_send)
     // we can do that if we choose because we haven't sent any data in this state
     // set_current_step_if_untouched(INIT_STEP_SET_LOWRATE);
     // allow it enter the next state immmediately by not setting status->lastStepTimestampRaw = PIOS_DELAY_GetRaw();
-    // break;
+    // fall through
 
     case INIT_STEP_SET_LOWRATE:
         // Here we set minimal baudrate *before* changing gps baudrate

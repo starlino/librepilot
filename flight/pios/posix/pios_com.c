@@ -281,6 +281,26 @@ int32_t PIOS_COM_ChangeBaud(uint32_t com_id, uint32_t baud)
 }
 
 /**
+ * Clear Rx buffer
+ * \param[in] port COM port
+ * \return -1 if port not available
+ * \return 0 on success
+ */
+int32_t PIOS_COM_ClearRxBuffer(uint32_t com_id)
+{
+    struct pios_com_dev *com_dev = PIOS_COM_find_dev(com_id);
+
+    if (!PIOS_COM_validate(com_dev)) {
+        /* Undefined COM port for this board (see pios_board.c) */
+        return -1;
+    }
+
+    fifoBuf_clearData(&com_dev->rx);
+
+    return 0;
+}
+
+/**
  * Sends a package over given port
  * \param[in] port COM port
  * \param[in] buffer character buffer
