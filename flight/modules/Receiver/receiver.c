@@ -914,6 +914,23 @@ static void applyLPF(float *value, ManualControlSettingsResponseTimeElem channel
 #ifndef PIOS_EXCLUDE_ADVANCED_FEATURES
 static uint8_t isAssistedFlightMode(uint8_t position)
 {
+    // Since VelocityRoam is by all means an "assisted" mode,
+    // here we do explicitly recognize it as "assisted", no matter
+    // if it has "GPSAssist" set in FlightModeAssistMap or not, thus
+    // always applying the "Assisted Control stick deadband" when
+    // VelocityRoam is active.
+    FlightModeSettingsData modeSettings;
+    FlightModeSettingsGet(&modeSettings);
+
+    uint8_t thisMode = FLIGHTSTATUS_FLIGHTMODE_MANUAL;
+    if (position < FLIGHTMODESETTINGS_FLIGHTMODEPOSITION_NUMELEM) {
+        thisMode = modeSettings.FlightModePosition[position];
+    }
+
+    if (thisMode == FLIGHTSTATUS_FLIGHTMODE_VELOCITYROAM) {
+        return STABILIZATIONSETTINGS_FLIGHTMODEASSISTMAP_GPSASSIST;
+    }
+
     uint8_t isAssistedFlag = STABILIZATIONSETTINGS_FLIGHTMODEASSISTMAP_NONE;
     uint8_t FlightModeAssistMap[STABILIZATIONSETTINGS_FLIGHTMODEASSISTMAP_NUMELEM];
 

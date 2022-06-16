@@ -118,7 +118,7 @@ static const TIM_TimeBaseInitTypeDef tim_4_time_base = {
     .TIM_RepetitionCounter = 0x0000,
 };
 
-static const struct pios_tim_clock_cfg pios_tim4_cfg = {
+__attribute__((unused)) static const struct pios_tim_clock_cfg pios_tim4_cfg = {
     .timer = TIM4,
     .time_base_init                            = &tim_4_time_base,
     .irq   = {

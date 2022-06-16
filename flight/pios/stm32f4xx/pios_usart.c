@@ -595,6 +595,7 @@ static int32_t PIOS_USART_Ioctl(uint32_t usart_id, uint32_t ctl, void *param)
             return -2; /* do not allow dsm bind on port with inverter */
         }
 #endif /* otherwise, return RXGPIO */
+    // fall through
     case PIOS_IOCTL_USART_GET_RXGPIO:
         *(struct stm32_gpio *)param = usart_dev->cfg->rx;
         break;

@@ -81,6 +81,7 @@ UAVOBJS = \
     $${UAVOBJ_XML_DIR}/flightplanstatus.xml \
     $${UAVOBJ_XML_DIR}/flightstatus.xml \
     $${UAVOBJ_XML_DIR}/flighttelemetrystats.xml \
+    $${UAVOBJ_XML_DIR}/frskysporttelemetrysettings.xml \
     $${UAVOBJ_XML_DIR}/gcsreceiver.xml \
     $${UAVOBJ_XML_DIR}/gcstelemetrystats.xml \
     $${UAVOBJ_XML_DIR}/gpsextendedstatus.xml \

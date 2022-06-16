@@ -108,6 +108,10 @@ uint32_t pios_com_debug_id; /* DebugConsole */
 uint32_t pios_com_hott_id;
 #endif
 
+#ifdef PIOS_INCLUDE_FRSKY_SPORT
+uint32_t pios_com_frsky_sport_id;
+#endif
+
 #ifdef PIOS_INCLUDE_USB
 
 uint32_t pios_com_telem_usb_id; /* USB telemetry */
@@ -433,6 +437,13 @@ static const struct uart_function uart_function_map[] = {
         .rcvr_group  = MANUALCONTROLSETTINGS_CHANNELGROUPS_SBUS,
     },
 # endif /* PIOS_INCLUDE_SBUS */
+# ifdef PIOS_INCLUDE_FRSKY_SPORT
+    [PIOS_BOARD_IO_UART_FRSKY_SPORT] =       {
+        .com_id         = &pios_com_frsky_sport_id,
+        .com_rx_buf_len = PIOS_COM_FRSKY_SPORT_RX_BUF_LEN,
+        .com_tx_buf_len = PIOS_COM_FRSKY_SPORT_TX_BUF_LEN,
+    },
+# endif
 #endif /* PIOS_INCLUDE_RCVR */
 };
 

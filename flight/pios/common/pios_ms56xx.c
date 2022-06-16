@@ -474,7 +474,7 @@ bool PIOS_MS56xx_driver_poll(__attribute__((unused)) uintptr_t context)
     case MS56XX_FSM_CALIBRATION:
         PIOS_MS56xx_ReadCalibrationData();
     /* fall through to MS56XX_FSM_TEMPERATURE */
-
+    // fall through
     case MS56XX_FSM_TEMPERATURE:
         PIOS_MS56xx_StartADC(MS56XX_CONVERSION_TYPE_TemperatureConv);
         next_state = MS56XX_FSM_PRESSURE;

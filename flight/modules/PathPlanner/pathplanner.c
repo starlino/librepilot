@@ -260,6 +260,7 @@ static void pathPlannerTask()
     switch (pathAction.Command) {
     case PATHACTION_COMMAND_ONNOTCONDITIONNEXTWAYPOINT:
         endCondition = !endCondition;
+    // fall through
     case PATHACTION_COMMAND_ONCONDITIONNEXTWAYPOINT:
         if (endCondition) {
             setWaypoint(waypointActive.Index + 1);
@@ -267,6 +268,7 @@ static void pathPlannerTask()
         break;
     case PATHACTION_COMMAND_ONNOTCONDITIONJUMPWAYPOINT:
         endCondition = !endCondition;
+    // fall through
     case PATHACTION_COMMAND_ONCONDITIONJUMPWAYPOINT:
         if (endCondition) {
             if (pathAction.JumpDestination < 0) {
@@ -312,7 +314,7 @@ void updatePathDesired()
     pathDesired.End.East  = waypoint.Position.East;
     pathDesired.End.Down  = waypoint.Position.Down;
     pathDesired.EndingVelocity    = waypoint.Velocity;
-    pathDesired.Mode = pathAction.Mode;
+    pathDesired.Mode = (PathDesiredModeOptions)pathAction.Mode;
     pathDesired.ModeParameters[0] = pathAction.ModeParameters[0];
     pathDesired.ModeParameters[1] = pathAction.ModeParameters[1];
     pathDesired.ModeParameters[2] = pathAction.ModeParameters[2];
@@ -339,10 +341,23 @@ void updatePathDesired()
         WaypointData waypointPrev;
         WaypointInstGet(waypointActive.Index - 1, &waypointPrev);
 
-        pathDesired.Start.North = waypointPrev.Position.North;
-        pathDesired.Start.East  = waypointPrev.Position.East;
-        pathDesired.Start.Down  = waypointPrev.Position.Down;
-        pathDesired.StartingVelocity = waypointPrev.Velocity;
+        // When exiting CIRCLE, use current UAV position as a start point for PathDesired vector to the next waypoint
+        // instead of previous waypoint location (that represents the center of the circle)
+        PathActionData prevAction;
+        PathActionInstGet(waypointPrev.Action, &prevAction);
+        if ((prevAction.Mode == PATHACTION_MODE_CIRCLERIGHT) || (prevAction.Mode == PATHACTION_MODE_CIRCLELEFT)) {
+            PositionStateData positionState;
+            PositionStateGet(&positionState);
+            pathDesired.Start.North = positionState.North;
+            pathDesired.Start.East  = positionState.East;
+            pathDesired.Start.Down  = positionState.Down;
+            pathDesired.StartingVelocity = waypointPrev.Velocity;
+        } else {
+            pathDesired.Start.North = waypointPrev.Position.North;
+            pathDesired.Start.East  = waypointPrev.Position.East;
+            pathDesired.Start.Down  = waypointPrev.Position.Down;
+            pathDesired.StartingVelocity = waypointPrev.Velocity;
+        }
     }
 
     PathDesiredSet(&pathDesired);
@@ -662,7 +677,15 @@ static uint8_t conditionPointingTowardsNext()
     WaypointData nextWaypoint;
     WaypointInstGet(nextWaypointId, &nextWaypoint);
 
-    float angle1 = atan2f((nextWaypoint.Position.North - waypoint.Position.North), (nextWaypoint.Position.East - waypoint.Position.East));
+    PositionStateData positionState;
+    PositionStateGet(&positionState);
+
+    // check if current position exactly matches nextWaipoint (in 2D space)
+    if ((fabsf(nextWaypoint.Position.North - positionState.North) < 1e-6f) && (fabsf(nextWaypoint.Position.East - positionState.East) < 1e-6f)) {
+        return true;
+    }
+
+    float angle1 = atan2f((nextWaypoint.Position.North - positionState.North), (nextWaypoint.Position.East - positionState.East));
 
     VelocityStateData velocity;
     VelocityStateGet(&velocity);

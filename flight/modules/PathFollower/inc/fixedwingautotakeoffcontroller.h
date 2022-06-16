@@ -51,7 +51,7 @@ public:
     static FixedWingFlyController *instance()
     {
         if (!p_inst) {
-            p_inst = new FixedWingAutoTakeoffController();
+            p_inst = new FixedWingAutoTakeoffController;
         }
         return p_inst;
     }

@@ -86,11 +86,13 @@
 /* seems to be completely unused #define PIOS_MPU6000_ACCEL */
 /* #define PIOS_INCLUDE_HMC5843 */
 #define PIOS_INCLUDE_HMC5X83
+#define PIOS_INCLUDE_QMC5883L
 /* Sparky2 5X83s are all external and thus don't have GPIOs #define PIOS_HMC5X83_HAS_GPIOS */
 /* #define PIOS_INCLUDE_BMP085 */
 #define PIOS_INCLUDE_MS56XX
 #define PIOS_INCLUDE_MPXV
 #define PIOS_INCLUDE_ETASV3
+#define PIOS_INCLUDE_SDP3X
 #define PIOS_INCLUDE_MS4525DO
 #define PIOS_INCLUDE_MPU9250
 #define PIOS_MPU9250_ACCEL

@@ -127,6 +127,7 @@ extern uint32_t pios_i2c_eeprom_pressure_adapter_id;
 extern uint32_t pios_i2c_flexiport_adapter_id;
 #define PIOS_I2C_FLEXI_ADAPTER           (pios_i2c_flexiport_adapter_id)
 #define PIOS_I2C_ETASV3_ADAPTER          (PIOS_I2C_FLEXI_ADAPTER)
+#define PIOS_I2C_SDP3X_ADAPTER           (PIOS_I2C_FLEXI_ADAPTER)
 #define PIOS_I2C_MS4525DO_ADAPTER        (PIOS_I2C_FLEXI_ADAPTER)
 #define PIOS_I2C_EXTERNAL_ADAPTER        (PIOS_I2C_FLEXI_ADAPTER)
 
@@ -271,7 +272,7 @@ extern uint32_t pios_packet_handler;
 // Receiver FlySky IBus input
 // -------------------------
 #define PIOS_IBUS_MAX_DEVS           1
-#define PIOS_IBUS_NUM_INPUTS         10
+#define PIOS_IBUS_NUM_INPUTS         14
 
 // -------------------------
 // Servo outputs

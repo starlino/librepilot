@@ -1,0 +1,12 @@
+<xml>
+	<object name="FrSKYSPortTelemetrySettings" singleinstance="true" settings="true" category="System">
+		<description>FrSKY S.Port Telemetry configuration.</description>
+
+		<field name="AccelData" units="" type="enum" elements="1" options="Accels,NEDAccels, NEDVelocity, AttitudeAngles" defaultvalue="Accels"/>
+
+		<access gcs="readwrite" flight="readwrite"/>
+		<telemetrygcs acked="true" updatemode="onchange" period="0"/>
+		<telemetryflight acked="true" updatemode="onchange" period="0"/>
+		<logging updatemode="manual" period="0"/>
+	</object>
+</xml>

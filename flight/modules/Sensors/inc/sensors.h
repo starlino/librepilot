@@ -34,5 +34,6 @@
 #include "openpilot.h"
 
 int32_t SensorsInitialize(void);
+void sensors_auxmag_load_mag_settings(void);
 
 #endif // SENSORS_H

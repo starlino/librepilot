@@ -707,14 +707,14 @@ static void InitSystemIdent(bool loadDefaults)
         systemIdentSettings.Tau = u.systemIdentState.Tau;
         systemIdentSettings.GyroReadTimeAverage = u.systemIdentState.GyroReadTimeAverage;
         memcpy(&systemIdentSettings.Beta, &u.systemIdentState.Beta, sizeof(SystemIdentSettingsBetaData));
-        systemIdentSettings.Complete = u.systemIdentState.Complete;
+        systemIdentSettings.Complete = (SystemIdentSettingsCompleteOptions)u.systemIdentState.Complete;
     } else {
         // Tau, GyroReadTimeAverage, Beta, and the Complete flag get stored values
         // so the user can fly another battery to select and test PIDs with the slider/knob
         u.systemIdentState.Tau = systemIdentSettings.Tau;
         u.systemIdentState.GyroReadTimeAverage = systemIdentSettings.GyroReadTimeAverage;
         memcpy(&u.systemIdentState.Beta, &systemIdentSettings.Beta, sizeof(SystemIdentStateBetaData));
-        u.systemIdentState.Complete = systemIdentSettings.Complete;
+        u.systemIdentState.Complete = (SystemIdentStateCompleteOptions)systemIdentSettings.Complete;
     }
     SystemIdentStateSet(&u.systemIdentState);
 

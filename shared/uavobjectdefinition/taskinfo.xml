@@ -35,6 +35,7 @@
 			<elementname>UAVOMSPBridge</elementname>
 			<elementname>UAVOFrskySensorHubBridge</elementname>
 			<elementname>UAVOMAVLinkBridge</elementname>
+			<elementname>FrSkySPortTelemetry</elementname>
                         <elementname>AutoTune</elementname>
 		</elementnames>
 	</field> 
@@ -72,6 +73,7 @@
 			<elementname>UAVOMSPBridge</elementname>
 			<elementname>UAVOFrskySensorHubBridge</elementname>
 			<elementname>UAVOMAVLinkBridge</elementname>
+			<elementname>FrSkySPortTelemetry</elementname>
 			<elementname>AutoTune</elementname>
 		</elementnames>
 		<options>
@@ -113,6 +115,7 @@
 			<elementname>UAVOMSPBridge</elementname>
 			<elementname>UAVOFrskySensorHubBridge</elementname>
 			<elementname>UAVOMAVLinkBridge</elementname>
+			<elementname>FrSkySPortTelemetry</elementname>
 			<elementname>AutoTune</elementname>
 		</elementnames>
 	</field> 

@@ -1944,7 +1944,7 @@ void update_telemetrydata()
     // use climbrate pointer for alternate display, without GPS every 5s or 3.3s with speed/dist msg
     uint8_t statusmsg_num = (telestate->Settings.Sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ? 3 : 2;
     if (telestate->climbrate_pointer < (climbratesize / statusmsg_num)) {
-        snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%8s", txt_flightmode, txt_armstate);
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%7s", txt_flightmode, txt_armstate);
     } else if (telestate->climbrate_pointer < (climbratesize / statusmsg_num) * 2) {
         snprintf(telestate->statusline, sizeof(telestate->statusline), "MaxG %2d.%d  MinG %2d.%d",
                  (int8_t)(telestate->max_G), (int8_t)(telestate->max_G * 10) % 10,

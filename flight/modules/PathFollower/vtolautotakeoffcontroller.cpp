@@ -94,14 +94,14 @@ void VtolAutoTakeoffController::Activate(void)
         autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_WAITFORARMED;
         // We only allow takeoff if the state transition of disarmed to armed occurs
         // whilst in the autotake flight mode
-        FlightStatusData flightStatus;
-        FlightStatusGet(&flightStatus);
+        FlightStatusData _flightStatus;
+        FlightStatusGet(&_flightStatus);
         StabilizationDesiredData stabiDesired;
         StabilizationDesiredGet(&stabiDesired);
 
-        if (flightStatus.Armed) {
+        if (_flightStatus.Armed) {
             // Are we inflight?
-            if (stabiDesired.Thrust > AUTOTAKEOFF_INFLIGHT_THROTTLE_CHECK_LIMIT || flightStatus.ControlChain.PathPlanner == FLIGHTSTATUS_CONTROLCHAIN_TRUE) {
+            if (stabiDesired.Thrust > AUTOTAKEOFF_INFLIGHT_THROTTLE_CHECK_LIMIT || _flightStatus.ControlChain.PathPlanner == FLIGHTSTATUS_CONTROLCHAIN_TRUE) {
                 // ok assume already in flight and just enter position hold
                 // if we are not actually inflight this will just be a violent autotakeoff
                 autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_POSITIONHOLD;
@@ -327,9 +327,9 @@ void VtolAutoTakeoffController::UpdateAutoPilot()
     switch (autotakeoffState) {
     case STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_REQUIREUNARMEDFIRST:
     {
-        FlightStatusData flightStatus;
-        FlightStatusGet(&flightStatus);
-        if (!flightStatus.Armed) {
+        FlightStatusData _flightStatus;
+        FlightStatusGet(&_flightStatus);
+        if (!_flightStatus.Armed) {
             autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_WAITFORARMED;
             fsm->setControlState(autotakeoffState);
         }
@@ -337,9 +337,9 @@ void VtolAutoTakeoffController::UpdateAutoPilot()
     break;
     case STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_WAITFORARMED:
     {
-        FlightStatusData flightStatus;
-        FlightStatusGet(&flightStatus);
-        if (flightStatus.Armed) {
+        FlightStatusData _flightStatus;
+        FlightStatusGet(&_flightStatus);
+        if (_flightStatus.Armed) {
             autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_WAITFORMIDTHROTTLE;
             fsm->setControlState(autotakeoffState);
         }
@@ -360,11 +360,11 @@ void VtolAutoTakeoffController::UpdateAutoPilot()
     {
         ManualControlCommandData cmd;
         ManualControlCommandGet(&cmd);
-        FlightStatusData flightStatus;
-        FlightStatusGet(&flightStatus);
+        FlightStatusData _flightStatus;
+        FlightStatusGet(&_flightStatus);
 
         // we do not do a takeoff abort in pathplanner mode
-        if (flightStatus.ControlChain.PathPlanner != FLIGHTSTATUS_CONTROLCHAIN_TRUE &&
+        if (_flightStatus.ControlChain.PathPlanner != FLIGHTSTATUS_CONTROLCHAIN_TRUE &&
             cmd.Throttle < AUTOTAKEOFF_THROTTLE_ABORT_LIMIT) {
             autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_ABORT;
             fsm->setControlState(autotakeoffState);
@@ -373,9 +373,9 @@ void VtolAutoTakeoffController::UpdateAutoPilot()
     break;
     case STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_ABORT:
     {
-        FlightStatusData flightStatus;
-        FlightStatusGet(&flightStatus);
-        if (!flightStatus.Armed) {
+        FlightStatusData _flightStatus;
+        FlightStatusGet(&_flightStatus);
+        if (!_flightStatus.Armed) {
             autotakeoffState = STATUSVTOLAUTOTAKEOFF_CONTROLSTATE_WAITFORARMED;
             fsm->setControlState(autotakeoffState);
         }

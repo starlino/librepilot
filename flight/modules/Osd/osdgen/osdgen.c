@@ -805,7 +805,7 @@ void write_circle_filled(uint8_t *buff, unsigned int cx, unsigned int cy, unsign
 void write_line(uint8_t *buff, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, int mode)
 {
     // Based on http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-    unsigned int steep = abs(y1 - y0) > abs(x1 - x0);
+    unsigned int steep = abs((int)(y1 - y0)) > abs((int)(x1 - x0));
 
     if (steep) {
         SWAP(x0, y0);
@@ -816,7 +816,7 @@ void write_line(uint8_t *buff, unsigned int x0, unsigned int y0, unsigned int x1
         SWAP(y0, y1);
     }
     int deltax     = x1 - x0;
-    unsigned int deltay = abs(y1 - y0);
+    unsigned int deltay = abs((int)(y1 - y0));
     int error      = deltax / 2;
     int ystep;
     unsigned int y = y0;
@@ -884,7 +884,7 @@ void write_line_outlined(unsigned int x0, unsigned int y0, unsigned int x1, unsi
         omode = 1;
         imode = 0;
     }
-    int steep = abs(y1 - y0) > abs(x1 - x0);
+    int steep = abs((int)(y1 - y0)) > abs((int)(x1 - x0));
     if (steep) {
         SWAP(x0, y0);
         SWAP(x1, y1);
@@ -894,7 +894,7 @@ void write_line_outlined(unsigned int x0, unsigned int y0, unsigned int x1, unsi
         SWAP(y0, y1);
     }
     int deltax     = x1 - x0;
-    unsigned int deltay = abs(y1 - y0);
+    unsigned int deltay = abs((int)(y1 - y0));
     int error      = deltax / 2;
     int ystep;
     unsigned int y = y0;
@@ -1583,7 +1583,7 @@ void drawBattery(uint16_t x, uint16_t y, uint8_t battery, uint16_t size)
 
 void printTime(uint16_t x, uint16_t y)
 {
-    char temp[9] =
+    char temp[12] =
     { 0 };
 
     sprintf(temp, "%02d:%02d:%02d", timex.hour, timex.min, timex.sec);

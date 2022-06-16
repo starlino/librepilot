@@ -148,6 +148,7 @@ int32_t configuration_check()
         {
             ADDSEVERITY(!gps_assisted);
         }
+        // fall through
         case FLIGHTMODESETTINGS_FLIGHTMODEPOSITION_POSITIONHOLD:
         case FLIGHTMODESETTINGS_FLIGHTMODEPOSITION_VELOCITYROAM:
         case FLIGHTMODESETTINGS_FLIGHTMODEPOSITION_LAND:
@@ -195,11 +196,11 @@ int32_t configuration_check()
     ManualControlSettingsChannelMaxGet(&channelMax);
     switch (thrustType) {
     case SYSTEMSETTINGS_THRUSTCONTROL_THROTTLE:
-        ADDSEVERITY(fabsf(channelMax.Throttle - channelMin.Throttle) > 300.0f);
+        ADDSEVERITY(fabsf((float)(channelMax.Throttle - channelMin.Throttle)) > 300.0f);
         ADDEXTENDEDALARMSTATUS(SYSTEMALARMS_EXTENDEDALARMSTATUS_BADTHROTTLEORCOLLECTIVEINPUTRANGE, 0);
         break;
     case SYSTEMSETTINGS_THRUSTCONTROL_COLLECTIVE:
-        ADDSEVERITY(fabsf(channelMax.Collective - channelMin.Collective) > 300.0f);
+        ADDSEVERITY(fabsf((float)(channelMax.Collective - channelMin.Collective)) > 300.0f);
         ADDEXTENDEDALARMSTATUS(SYSTEMALARMS_EXTENDEDALARMSTATUS_BADTHROTTLEORCOLLECTIVEINPUTRANGE, 0);
         break;
     default:

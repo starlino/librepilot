@@ -199,6 +199,11 @@ extern "C" {
 #include <pios_etasv3.h>
 #endif
 
+#ifdef PIOS_INCLUDE_SDP3X
+/* SDP3X Airspeed MicroSensor*/
+#include <pios_sdp3x.h>
+#endif
+
 #ifdef PIOS_INCLUDE_MS4525DO
 /* PixHawk Airspeed Sensor based on MS4525DO */
 #include <pios_ms4525do.h>
@@ -338,6 +343,10 @@ extern "C" {
 
 /* Performance counters */
 /* #define IDLE_COUNTS_PER_SEC_AT_NO_LOAD 995998 */
+
+#if defined(PIOS_INCLUDE_HMC5X83) || defined(PIOS_INCLUDE_QMC5883L)
+#define PIOS_INCLUDE_SENSORS_AUXMAG
+#endif
 
 #endif /* USE_SIM_POSIX */
 
