@@ -920,6 +920,7 @@ static uint8_t isAssistedFlightMode(uint8_t position)
     // always applying the "Assisted Control stick deadband" when
     // VelocityRoam is active.
     FlightModeSettingsData modeSettings;
+
     FlightModeSettingsGet(&modeSettings);
 
     uint8_t thisMode = FLIGHTSTATUS_FLIGHTMODE_MANUAL;
@@ -942,7 +943,7 @@ static uint8_t isAssistedFlightMode(uint8_t position)
 
     return isAssistedFlag;
 }
-#endif
+#endif /* ifndef PIOS_EXCLUDE_ADVANCED_FEATURES */
 
 /**
  * @}

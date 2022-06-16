@@ -77,6 +77,14 @@
 
 #define ADC_XX_PIN_NOTFOUND -1
 
+#define maxu2(x) ((x) > 99 ? 99 : (x))
+#define maxu3(x) ((x) > 999 ? 999 : (x))
+#define maxu4(x) ((x) > 9999 ? 9999 : (x))
+
+#define maxd2(x) ((x) < -99 ? -99 : (maxu2(x)))
+#define maxd3(x) ((x) < -999 ? -999 : (maxu3(x)))
+#define maxd4(x) ((x) < -9999 ? -9999 : (maxu4(x)))
+
 static bool module_enabled = false;
 
 // Private variables
@@ -811,13 +819,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             edit_status = HOTTTEXT_EDITSTATUS_DONE;
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Altitude speak  [%1s] ", ((alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxHeight       [%1s] ", ((alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinHeight       [%1s] ", ((alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Instant Sink    [%1s] ", ((alarmWarning.NegDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Instant Climb   [%1s] ", ((alarmWarning.PosDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink       [%1s] ", ((alarmWarning.NegDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Climb      [%1s] ", ((alarmWarning.PosDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Altitude speak  [%1s]", ((alarmWarning.AltitudeBeep == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxHeight       [%1s]", ((alarmWarning.MaxHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinHeight       [%1s]", ((alarmWarning.MinHeight == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Instant Sink    [%1s]", ((alarmWarning.NegDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Instant Climb   [%1s]", ((alarmWarning.PosDifference1 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink       [%1s]", ((alarmWarning.NegDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Climb      [%1s]", ((alarmWarning.PosDifference2 == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -879,13 +887,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Sensitivity cm/s%3d ", (int16_t)varioSensitivity); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Max height     %4d ", (int16_t)alarmLimits.MaxHeight); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Min height     %4d ", (int16_t)alarmLimits.MinHeight); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Inst. Sink m/s  %3d ", (int16_t)alarmLimits.NegDifference1); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Inst. Climb m/s %3d ", (int16_t)alarmLimits.PosDifference1); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink m/3s %4d ", (int16_t)alarmLimits.NegDifference2); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Climb m/3s%4d ", (int16_t)alarmLimits.PosDifference2); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Sensitivity cm/s%3d", (int16_t)varioSensitivity); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Max height   % 6d", (int16_t)alarmLimits.MaxHeight); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Min height   % 6d", (int16_t)alarmLimits.MinHeight); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Inst. Sink m/s % 3d", maxd3((int16_t)alarmLimits.NegDifference1)); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Inst. Clmb m/s % 3d", maxd3((int16_t)alarmLimits.PosDifference1)); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Fast Sink m/3s% 4d", maxd4((int16_t)alarmLimits.NegDifference2)); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, " Fast Clmb m/3s% 4d", maxd4((int16_t)alarmLimits.PosDifference2)); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -947,13 +955,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             alarmLimits.MinSpeed = get_new_value((int16_t)alarmLimits.MinSpeed, value_change, step, 0, 1000);
             HoTTBridgeSettingsLimitSet(&alarmLimits);
         }
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MaxDist warn    [%1s] ", ((alarmWarning.MaxDistance == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxSpeed warn   [%1s] ", ((alarmWarning.MaxSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinSpeed warn   [%1s] ", ((alarmWarning.MinSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Max distance   %4d ", (uint16_t)alarmLimits.MaxDistance); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Max speed      %4d ", (int16_t)alarmLimits.MaxSpeed); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Min speed      %4d ", (int16_t)alarmLimits.MinSpeed); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MaxDist warn    [%1s]", ((alarmWarning.MaxDistance == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxSpeed warn   [%1s]", ((alarmWarning.MaxSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MinSpeed warn   [%1s]", ((alarmWarning.MinSpeed == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Max distance  %5d", (uint16_t)alarmLimits.MaxDistance); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Max speed    % 5d", (int16_t)alarmLimits.MaxSpeed); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Min speed    % 5d", (int16_t)alarmLimits.MinSpeed); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                    "); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1024,13 +1032,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             FlightBatterySettingsCapacitySet(&battSensorCapacity);
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MinVoltage warn [%1s] ", ((alarmWarning.MinPowerVoltage == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxCurrent warn [%1s] ", ((alarmWarning.MaxCurrent == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MaxUsedmAH warn [%1s] ", ((alarmWarning.MaxUsedCapacity == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Min voltage    %2d.%d ", (uint16_t)(alarmLimits.MinPowerVoltage), (uint16_t)(alarmLimits.MinPowerVoltage * 10) % 10); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Max current     %3d ", (uint16_t)alarmLimits.MaxCurrent); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Max used mAH  %5d ", (uint16_t)alarmLimits.MaxUsedCapacity); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " MinVoltage warn [%1s]", ((alarmWarning.MinPowerVoltage == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " MaxCurrent warn [%1s]", ((alarmWarning.MaxCurrent == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " MaxUsedmAH warn [%1s]", ((alarmWarning.MaxUsedCapacity == HOTTBRIDGESETTINGS_WARNING_DISABLED) ? " " : "*")); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Min voltage    %2d.%d", maxu2((uint16_t)(alarmLimits.MinPowerVoltage)), (uint16_t)(alarmLimits.MinPowerVoltage * 10) % 10); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " Max current    %4d", maxu4((uint16_t)alarmLimits.MaxCurrent)); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, " Max used mAH  %5d", (uint16_t)alarmLimits.MaxUsedCapacity); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                    "); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1105,16 +1113,16 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
 
         char *home_set_status = (homeSetFlash == HOMELOCATION_SET_FALSE) ? ((homeSet == HOMELOCATION_SET_TRUE) ? "ISSET" : "    ?") : "FIXED";
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s ", home_set_status); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min satellites    %d ", gpsSettings.MinSatellites); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Max PDOP       %2d.%d ", (uint16_t)(gpsSettings.MaxPDOP), (uint16_t)(gpsSettings.MaxPDOP * 10) % 10); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " UBX Rate         %2d ", gpsSettings.UbxRate); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d Sats %s PDOP:%2d.%d ",
-                 (uint16_t)(telestate->GPS.Satellites),
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Home status   %s", home_set_status); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Min satellites  %u", (uint8_t)gpsSettings.MinSatellites); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Max PDOP       %2d.%d", maxu2((uint16_t)(gpsSettings.MaxPDOP)), (uint16_t)(gpsSettings.MaxPDOP * 10) % 10); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " UBX Rate        % 2d", maxd2(gpsSettings.UbxRate)); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                    "); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                    "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d Sats %s PDOP:%2d.%d",
+                 maxu2((uint16_t)(telestate->GPS.Satellites)),
                  ((telestate->GPS.Status > GPSPOSITIONSENSOR_STATUS_FIX2D) ? "3D" : "??"),
-                 (uint16_t)(telestate->GPS.PDOP), (uint16_t)(telestate->GPS.PDOP * 10) % 10); // line 8
+                 maxu2((uint16_t)(telestate->GPS.PDOP)), (uint16_t)(telestate->GPS.PDOP * 10) % 10); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1197,15 +1205,15 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             }
             HwSettingsADCRoutingArraySet(adcRouting);
         }
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Volt. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.VoltageFactor), (uint16_t)(battSensorCalibration.VoltageFactor * 100) % 100); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Curr. Factor  %2d.%02d ", (uint16_t)(battSensorCalibration.CurrentFactor), (uint16_t)(battSensorCalibration.CurrentFactor * 100) % 100); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Curr. Zero    %s%d.%02d ", (battSensorCalibration.CurrentZero < 0 ? "-" : " "), (uint16_t)(fabsf(battSensorCalibration.CurrentZero)), (uint16_t)(fabsf(battSensorCalibration.CurrentZero * 100)) % 100); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " VoltagePin     %s ", hottTextADCpinNames[voltageADCPin + 1]); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " CurrentPin     %s ", hottTextADCpinNames[currentADCPin + 1]); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d.%02dV %3d.%02dA      ",
-                 (uint16_t)(telestate->Battery.Voltage), (uint16_t)(telestate->Battery.Voltage * 100) % 100,
-                 (uint16_t)(telestate->Battery.Current), (uint16_t)(telestate->Battery.Current * 100) % 100); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " Volt. Factor  %2d.%02d", maxu2((uint16_t)(battSensorCalibration.VoltageFactor)), (uint16_t)(battSensorCalibration.VoltageFactor * 100) % 100); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Curr. Factor  %2d.%02d", maxu2((uint16_t)(battSensorCalibration.CurrentFactor)), (uint16_t)(battSensorCalibration.CurrentFactor * 100) % 100); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Curr. Zero %s%d.%02d", (battSensorCalibration.CurrentZero < 0 ? "-" : " "), maxu4((uint16_t)(fabsf(battSensorCalibration.CurrentZero))), (uint16_t)(fabsf(battSensorCalibration.CurrentZero * 100)) % 100); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " VoltagePin     %s", hottTextADCpinNames[voltageADCPin + 1]); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " CurrentPin     %s", hottTextADCpinNames[currentADCPin + 1]); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                    "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "%2d.%02dV %3d.%02dA     ",
+                 maxu2((uint16_t)(telestate->Battery.Voltage)), (uint16_t)(telestate->Battery.Voltage * 100) % 100,
+                 maxu3((uint16_t)(telestate->Battery.Current)), (uint16_t)(telestate->Battery.Current * 100) % 100); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1286,13 +1294,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
             AttitudeSettingsBoardRotationSet(&boardRotation);
         }
 
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " EstAlgo %s ", txt_fusionalgo); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Roll rot.    %4d.%d ", (int16_t)(boardRotation.Roll), (int16_t)fabs(boardRotation.Roll * 10) % 10); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Pitch rot.   %4d.%d ", (int16_t)(boardRotation.Pitch), (int16_t)fabs(boardRotation.Pitch * 10) % 10); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Yaw rot.     %4d.%d ", (int16_t)(boardRotation.Yaw), (int16_t)fabs(boardRotation.Yaw * 10) % 10); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                     "); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                     "); // line 7
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                     "); // line 8
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " EstAlgo %s", txt_fusionalgo); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " Roll rot.   % 4d.%d", maxd4((int16_t)(boardRotation.Roll)), (int16_t)fabs(boardRotation.Roll * 10) % 10); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " Pitch rot.  % 4d.%d", maxd4((int16_t)(boardRotation.Pitch)), (int16_t)fabs(boardRotation.Pitch * 10) % 10); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " Yaw rot.    % 4d.%d", maxd4((int16_t)(boardRotation.Yaw)), (int16_t)fabs(boardRotation.Yaw * 10) % 10); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, "                    "); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "                    "); // line 7
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "                    "); // line 8
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1338,13 +1346,13 @@ uint8_t build_TEXT_message(struct hott_text_message *msg, uint8_t page, uint8_t 
         }
 
         // create Main page content
-        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " VARIO module    [%1s] ", ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 2
-        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " GPS module      [%1s] ", ((sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 3
-        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " ELECTRIC module [%1s] ", ((sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 4
-        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " GENERAL module  [%1s] ", ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 5
-        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " ESC module      [%1s] ", ((sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 6
-        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "   Select module     ");
-        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "   to be emulated    ");
+        snprintf(msg->text[1], HOTT_TEXT_COLUMNS, " VARIO module    [%1s]", ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 2
+        snprintf(msg->text[2], HOTT_TEXT_COLUMNS, " GPS module      [%1s]", ((sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 3
+        snprintf(msg->text[3], HOTT_TEXT_COLUMNS, " ELECTRIC module [%1s]", ((sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 4
+        snprintf(msg->text[4], HOTT_TEXT_COLUMNS, " GENERAL module  [%1s]", ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 5
+        snprintf(msg->text[5], HOTT_TEXT_COLUMNS, " ESC module      [%1s]", ((sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_DISABLED) ? " " : "*")); // line 6
+        snprintf(msg->text[6], HOTT_TEXT_COLUMNS, "   Select module    ");
+        snprintf(msg->text[7], HOTT_TEXT_COLUMNS, "   to be emulated   ");
         if (current_line > 1) {
             msg->text[current_line - 1][0] = '>';
         }
@@ -1381,6 +1389,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GPSCONFIG:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1388,6 +1397,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_BATTERYCONFIG;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_BATTERYCONFIG:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1395,6 +1405,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_VARIOWARNINGS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1402,26 +1413,31 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOLIMITS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_VARIOLIMITS:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GPS:
             if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GENERAL;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GENERAL:
             if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ELECTRIC;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_ELECTRIC:
             if (sensor.ESC == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ESC;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_ESC:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1429,6 +1445,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_SENSORREDIR;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_SENSORREDIR:
             break;
         default:
@@ -1441,21 +1458,25 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_ESC;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_ESC:
             if (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_ELECTRIC;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_ELECTRIC:
             if (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GENERAL;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GENERAL:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GPS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1463,6 +1484,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOLIMITS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_VARIOLIMITS:
             if ((sensor.VARIO == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1470,6 +1492,7 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_VARIOWARNINGS;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_VARIOWARNINGS:
             if ((sensor.GAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
                 (sensor.EAM == HOTTBRIDGESETTINGS_SENSOR_ENABLED) ||
@@ -1477,11 +1500,13 @@ uint8_t get_page(uint8_t page, bool next)
                 page = HOTTTEXT_PAGE_BATTERYCONFIG;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_BATTERYCONFIG:
             if (sensor.GPS == HOTTBRIDGESETTINGS_SENSOR_ENABLED) {
                 page = HOTTTEXT_PAGE_GPSCONFIG;
                 break;
             }
+        // fall through
         case HOTTTEXT_PAGE_GPSCONFIG:
             page = HOTTTEXT_PAGE_MAINCONFIG;
             break;
@@ -1669,6 +1694,7 @@ void store_settings(uint8_t page, uint8_t current_line)
             UAVObjSave(HwSettingsHandle(), 0);
             break;
         }
+        break;
     case HOTTTEXT_PAGE_GPSCONFIG:
         UAVObjSave(GPSSettingsHandle(), 0);
         break;
@@ -1946,11 +1972,11 @@ void update_telemetrydata()
     if (telestate->climbrate_pointer < (climbratesize / statusmsg_num)) {
         snprintf(telestate->statusline, sizeof(telestate->statusline), "%12s,%7s", txt_flightmode, txt_armstate);
     } else if (telestate->climbrate_pointer < (climbratesize / statusmsg_num) * 2) {
-        snprintf(telestate->statusline, sizeof(telestate->statusline), "MaxG %2d.%d  MinG %2d.%d",
-                 (int8_t)(telestate->max_G), (int8_t)(telestate->max_G * 10) % 10,
-                 (int8_t)(telestate->min_G), (int8_t)abs(telestate->min_G * 10) % 10);
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "MxG % 2d.%d  MnG % 2d.%d",
+                 maxd2((int8_t)(telestate->max_G)), (int8_t)fabsf(telestate->max_G * 10) % 10,
+                 maxd2((int8_t)(telestate->min_G)), (int8_t)fabsf(telestate->min_G * 10) % 10);
     } else {
-        snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", (uint16_t)telestate->max_speed, (uint16_t)telestate->max_distance);
+        snprintf(telestate->statusline, sizeof(telestate->statusline), "Max %3dkmh Dst %4dm", maxu3((uint16_t)telestate->max_speed), maxu4((uint16_t)telestate->max_distance));
     }
 }
 
