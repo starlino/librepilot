@@ -589,11 +589,27 @@ float ProcessMixer(const int index, const float curve1, const float curve2,
         }
     }
 
-    float result = ((((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE1]) * curve1) +
+    float result = 0;
+    if(mixer->type == MIXERSETTINGS_MIXER1TYPE_REVERSABLEMOTOR){
+        //_SB_ for reversable motors do not reverse / cross break region
+        result = ((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE1]) * curve1 + 
+                    (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_ROLL]) * desired->Roll * differential) +
+                    (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_PITCH]) * desired->Pitch);
+        float adj = 
+                    (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE2]) * curve2) +
+                    (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_YAW]) * (float)fabs((double)desired->Yaw));
+        if(result < 0) adj = -adj;
+        float result_adj = result + adj;
+        //keep sign
+        if( (result > 0 && result_adj < 0 ) || (result < 0 && result_adj > 0) ) result_adj = 0;
+        result = result_adj /  128.0f;
+    }else{
+        result = ((((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE1]) * curve1) +
                     (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE2]) * curve2) +
                     (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_ROLL]) * desired->Roll * differential) +
                     (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_PITCH]) * desired->Pitch) +
                     (((float)mixer->matrix[MIXERSETTINGS_MIXER1VECTOR_YAW]) * desired->Yaw)) / 128.0f;
+    }
 
     if (mixer->type == MIXERSETTINGS_MIXER1TYPE_MOTOR) {
         if (!multirotor) { // we allow negative throttle with a multirotor

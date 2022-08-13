@@ -1,0 +1,23 @@
+{
+  "name": "librepilot",
+  "version": "1.0.0",
+  "description": "About the LibrePilot Project\r ============================",
+  "main": "index.js",
+  "scripts": {
+    "build-ef": "make ef_coptercontrol",
+    "device_info_0": "stm32flash /dev/ttyUSB0",
+    "flash_0": "stm32flash /dev/ttyUSB0 -w build/firmware/ef_coptercontrol/ef_coptercontrol.bin",
+    "flash_and_run_0": "stm32flash /dev/ttyUSB0 -w build/firmware/ef_coptercontrol/ef_coptercontrol.bin -g 0x08003000",
+    "device_info_1": "stm32flash /dev/ttyUSB1",
+    "flash_1": "stm32flash /dev/ttyUSB1 -w build/firmware/ef_coptercontrol/ef_coptercontrol.bin",
+    "flash_and_run_1": "stm32flash /dev/ttyUSB1 -w build/firmware/ef_coptercontrol/ef_coptercontrol.bin -g 0x08003000"    
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://bitbucket.org/librepilot/librepilot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/librepilot/librepilot#readme"
+}
