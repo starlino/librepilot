@@ -1,0 +1,20 @@
+{
+  "name": "librepilot-next",
+  "version": "1.0.0",
+  "description": "About the LibrePilot Project\r ============================",
+  "main": "index.js",
+  "scripts": {
+    "stm32flash_ef_spracingf3": "stm32flash -w ./build/firmware/ef_spracingf3/ef_spracingf3.bin -v -g 0x0 /dev/ttyUSB0",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://bitbucket.org/librepilot/librepilot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://bitbucket.org/librepilot/librepilot/issues"
+  },
+  "homepage": "https://bitbucket.org/librepilot/librepilot#readme"
+}
