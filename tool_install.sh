@@ -191,8 +191,11 @@ function download_and_verify
 		fi
 	elif [ -n "${tool_md5:-}" ]
 	then
-		if [[ "${tool_md5:-}  -" != "$(cd "$downloads_dir" && md5sum <"$downloaded_file")" ]]
+		echo "**_SB_** download_file:$tool_url tool_md5: $tool_md5"
+		# _SB_ '| cut -d' ' -f1' added , because md5sum returns eb7c9d1e131595525630f7dca8f13f09 *- (with star)
+		if [[ "${tool_md5:-}" != "$(cd "$downloads_dir" && md5sum <"$downloaded_file" | cut -d' ' -f1)" ]]
 		then
+			echo "**_SB_** actual md5:" "$(cd "$downloads_dir" && md5sum <"$downloaded_file")"
 			mv -f "$downloaded_file"{,.rej} && \
 			verified=false
 		fi
